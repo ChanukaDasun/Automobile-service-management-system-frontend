@@ -10,9 +10,9 @@ interface RequireRoleProps {
 export function RequireRole({ role, children }: RequireRoleProps) {
   const { user } = useUser()
   const userRole = user?.publicMetadata?.role as string | undefined
-
+  console.log(userRole);
   if (!user || userRole !== role) {
-    return <Navigate to="/" />
+    return <Navigate to="/heloo" />
   }
 
   return children
