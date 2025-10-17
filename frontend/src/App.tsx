@@ -11,7 +11,7 @@ export default function App() {
     <div>
       <div className="flex min-h-svh flex-col items-center justify-center gap-4">
         {
-          !user ? (<Button onClick={openSignIn}>Login</Button>) : (<UserButton />)
+          !user ? (<Button onClick={() =>openSignIn}>Login</Button>) : (<UserButton />)
         }
         
       </div>
