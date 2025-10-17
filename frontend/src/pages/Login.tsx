@@ -1,5 +1,4 @@
 // src/pages/LandingPage.tsx
-import React from "react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 

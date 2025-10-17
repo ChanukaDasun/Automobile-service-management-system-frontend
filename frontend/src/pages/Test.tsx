@@ -1,5 +1,4 @@
 import { useUser } from '@clerk/clerk-react'
-import React from 'react'
 
 function Test() {
     const {user} = useUser();
