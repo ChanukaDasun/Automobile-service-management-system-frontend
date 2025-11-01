@@ -8,13 +8,13 @@ interface RoleGuardProps {
   children: React.ReactNode
 }
 
-export const RoleGuard = ({  children }: RoleGuardProps) => {
+export const RoleGuard = ({  children, role }: RoleGuardProps) => {
   const { user } = useUser()
   const userRole = user?.publicMetadata?.role
   console.log(userRole);
 
   if (!user) return <Navigate to="/login" /> // not logged in
-  // if (userRole !== role) return <Navigate to="/" /> // wrong role
+  if (userRole !== role) return <Navigate to="/" /> // wrong role
 
   return <>{children}</>
 }

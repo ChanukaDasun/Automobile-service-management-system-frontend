@@ -7,6 +7,8 @@ import EmployeePage from "./pages/EmployeePage";
 import UserPage from "./pages/UserPage";
 import { Roles } from "./types/globals";
 import Login from "./pages/Login";
+import UserLayout from "./layouts/UserLayout";
+import ChatWindow from "./pages/ChatWindow";
 
 export default function App() {
   const { user } = useUser();
@@ -50,10 +52,13 @@ export default function App() {
                 path="/user"
                 element={
                   <RoleGuard role={Roles.User}>
-                    <UserPage />
+                    <UserLayout />
                   </RoleGuard>
                 }
-              />
+              >
+                <Route index element={<UserPage />} />
+                <Route path="chat" element={<ChatWindow />} />
+              </Route>
             </Routes>
           </>
         ) : (
