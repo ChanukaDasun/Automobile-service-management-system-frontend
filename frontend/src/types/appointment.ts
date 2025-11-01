@@ -13,6 +13,14 @@ export interface Appointment {
   createdAt: string;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  availability: boolean;
+  assignedAppointments?: number;
+}
+
 export interface TimeSlot {
   time: string;
   available: boolean;

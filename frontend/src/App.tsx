@@ -4,6 +4,7 @@ import { UserButton, useUser } from "@clerk/clerk-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import AdminPage from "./pages/AdminPage";
 import EmployeePage from "./pages/EmployeePage";
+import EmployeeTasks from "./pages/EmployeeTasks";
 import UserPage from "./pages/UserPage";
 import Appointment from "./pages/Appointment";
 import { Roles } from "./types/globals";
@@ -44,6 +45,14 @@ export default function App() {
                 element={
                   <RoleGuard role={Roles.Employee}>
                     <EmployeePage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/employee/tasks"
+                element={
+                  <RoleGuard role={Roles.Employee}>
+                    <EmployeeTasks />
                   </RoleGuard>
                 }
               />
