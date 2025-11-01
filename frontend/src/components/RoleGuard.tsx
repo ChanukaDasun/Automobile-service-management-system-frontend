@@ -8,13 +8,22 @@ interface RoleGuardProps {
   children: React.ReactNode
 }
 
-export const RoleGuard = ({  children }: RoleGuardProps) => {
+export const RoleGuard = ({ role, children }: RoleGuardProps) => {
   const { user } = useUser()
-  const userRole = user?.publicMetadata?.role
-  console.log(userRole);
+  const userRole = user?.publicMetadata?.role as Roles | undefined
+  
+  console.log('User Role:', userRole, 'Required Role:', role);
 
   if (!user) return <Navigate to="/login" /> // not logged in
-  // if (userRole !== role) return <Navigate to="/" /> // wrong role
+  
+  // If user has no role, default to 'user' role
+  const effectiveRole = userRole || Roles.User;
+  
+  // Check if user has the required role
+  if (effectiveRole !== role) {
+    console.log('Access denied: User role does not match required role');
+    return <Navigate to="/" /> // wrong role, redirect to home
+  }
 
   return <>{children}</>
 }
