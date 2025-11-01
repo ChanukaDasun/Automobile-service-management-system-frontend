@@ -1,20 +1,74 @@
-import { Button } from "./components/ui/button"
-import { useClerk, UserButton, useUser } from "@clerk/clerk-react"
+// src/App.tsx
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { UserButton, useUser } from "@clerk/clerk-react";
+import { RoleGuard } from "@/components/RoleGuard";
+import AdminPage from "./pages/AdminPage";
+import EmployeePage from "./pages/EmployeePage";
+import UserPage from "./pages/UserPage";
+import Appointment from "./pages/Appointment";
+import { Roles } from "./types/globals";
+import Login from "./pages/Login";
 
 export default function App() {
-
-  const { user } = useUser()
-  const { openSignIn } = useClerk()
+  const { user } = useUser();
 
   return (
-    /** here is the button to logged in want to impliment more **/
-    <div>
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4">
-        {
-          !user ? (<Button onClick={() =>openSignIn}>Login</Button>) : (<UserButton />)
-        }
-        
+    <Router>
+      <div>
+        <UserButton />
+        {user ? (
+          <>
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  user.publicMetadata.role === Roles.Admin ? (
+                    <Navigate to="/admin" />
+                  ) : user.publicMetadata.role === Roles.Employee ? (
+                    <Navigate to="/employee" />
+                  ) : (
+                    <Navigate to="/user" />
+                  )
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <RoleGuard role={Roles.Admin}>
+                    <AdminPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/employee"
+                element={
+                  <RoleGuard role={Roles.Employee}>
+                    <EmployeePage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/user"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <UserPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/appointment"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <Appointment />
+                  </RoleGuard>
+                }
+              />
+            </Routes>
+          </>
+        ) : (
+          <Login />
+        )}
       </div>
-    </div>
-  )
+    </Router>
+  );
 }
