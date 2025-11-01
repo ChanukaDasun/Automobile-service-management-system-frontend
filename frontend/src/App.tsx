@@ -13,6 +13,9 @@ import Login from "./pages/Login";
 export default function App() {
   const { user } = useUser();
 
+  // Get user role, default to 'user' if not set
+  const userRole = (user?.publicMetadata?.role as Roles) || Roles.User;
+
   return (
     <Router>
       <div>
@@ -23,9 +26,9 @@ export default function App() {
               <Route
                 path="/"
                 element={
-                  user.publicMetadata.role === Roles.Admin ? (
+                  userRole === Roles.Admin ? (
                     <Navigate to="/admin" />
-                  ) : user.publicMetadata.role === Roles.Employee ? (
+                  ) : userRole === Roles.Employee ? (
                     <Navigate to="/employee" />
                   ) : (
                     <Navigate to="/user" />
