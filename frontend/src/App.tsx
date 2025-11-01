@@ -5,6 +5,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import AdminPage from "./pages/AdminPage";
 import EmployeePage from "./pages/EmployeePage";
 import UserPage from "./pages/UserPage";
+import Appointment from "./pages/Appointment";
 import { Roles } from "./types/globals";
 import Login from "./pages/Login";
 
@@ -51,6 +52,14 @@ export default function App() {
                 element={
                   <RoleGuard role={Roles.User}>
                     <UserPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/appointment"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <Appointment />
                   </RoleGuard>
                 }
               />
