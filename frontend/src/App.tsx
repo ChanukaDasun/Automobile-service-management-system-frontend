@@ -40,14 +40,19 @@ export default function App() {
                   </RoleGuard>
                 }
               />
+
               <Route
                 path="/employee"
                 element={
                   <RoleGuard role={Roles.Employee}>
-                    <EmployeePage />
+                    <UserLayout />
                   </RoleGuard>
                 }
-              />
+              >
+                <Route index element={<EmployeePage />} />
+                <Route path="chat" element={<ChatWindow />} />
+              </Route>
+              
               <Route
                 path="/user"
                 element={

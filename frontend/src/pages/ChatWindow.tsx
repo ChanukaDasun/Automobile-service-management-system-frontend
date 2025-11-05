@@ -3,7 +3,6 @@ import {
   connectWebSocket,
   sendMessage,
   disconnectWebSocket,
-  isConnected,
 } from '../api/webSocketService';
 
 interface ChatMessage {
