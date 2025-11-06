@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import type { Appointment, Employee } from '@/types/appointment';
-import { Calendar, Users, Clock, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
+import { Calendar, Users, Clock, CheckCircle2, AlertCircle, UserCheck, Settings } from 'lucide-react';
+import DailyLimitsManager from '@/components/DailyLimitsManager';
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -14,6 +16,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [assigningId, setAssigningId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [showDailyLimits, setShowDailyLimits] = useState(false);
 
   // Get today's date as default
   const getTodayDate = () => {
@@ -187,10 +190,27 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-6">
       <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Appointment Management</h1>
-          <p className="text-slate-600">View and assign appointments to available employees</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Appointment Management</h1>
+            <p className="text-slate-600">View and assign appointments to available employees</p>
+          </div>
+          <Button
+            onClick={() => setShowDailyLimits(!showDailyLimits)}
+            variant={showDailyLimits ? 'default' : 'outline'}
+            className="flex items-center gap-2"
+          >
+            <Settings className="h-5 w-5" />
+            {showDailyLimits ? 'Hide' : 'Show'} Daily Limits
+          </Button>
         </div>
+
+        {/* Daily Limits Manager */}
+        {showDailyLimits && (
+          <div className="mb-6">
+            <DailyLimitsManager />
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
