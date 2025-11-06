@@ -1,40 +1,34 @@
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { UserButton, useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import AdminPage from "./pages/AdminPage";
 import EmployeePage from "./pages/EmployeePage";
 import EmployeeTasks from "./pages/EmployeeTasks";
-import UserPage from "./pages/UserPage";
+import ClientDashboard from "./pages/ClientDashboard";
 import Appointment from "./pages/Appointment";
+import Notification from "./pages/Notification";
 import { Roles } from "./types/globals";
 import Login from "./pages/Login";
+import Navbar from "./components/Navbar";
 
 export default function App() {
   const { user } = useUser();
 
-  // Get user role, default to 'user' if not set
-  const userRole = (user?.publicMetadata?.role as Roles) || Roles.User;
-
   return (
     <Router>
       <div>
-        <UserButton />
-        {user ? (
-          <>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  userRole === Roles.Admin ? (
-                    <Navigate to="/admin" />
-                  ) : userRole === Roles.Employee ? (
-                    <Navigate to="/employee" />
-                  ) : (
-                    <Navigate to="/user" />
-                  )
-                }
-              />
+        <Navbar/>
+        <Routes>
+          {/* Landing/Home page - accessible to everyone */}
+          <Route path="/" element={<Login />} />
+          
+          {/* Login route - redirect to landing page (same content) */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+
+          {/* Protected routes - require authentication */}
+          {user ? (
+            <>
               <Route
                 path="/admin"
                 element={
@@ -60,10 +54,10 @@ export default function App() {
                 }
               />
               <Route
-                path="/user"
+                path="/user-dashboard"
                 element={
                   <RoleGuard role={Roles.User}>
-                    <UserPage />
+                    <ClientDashboard />
                   </RoleGuard>
                 }
               />
@@ -75,11 +69,20 @@ export default function App() {
                   </RoleGuard>
                 }
               />
-            </Routes>
-          </>
-        ) : (
-          <Login />
-        )}
+              <Route
+                path="/notification"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <Notification />
+                  </RoleGuard>
+                }
+              />
+            </>
+          ) : (
+            // Redirect all other routes to login when not authenticated
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          )}
+        </Routes>
       </div>
     </Router>
   );
