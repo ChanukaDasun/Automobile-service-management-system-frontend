@@ -1,11 +1,18 @@
 import { useState } from 'react';
-import { useClerk } from '@clerk/clerk-react';
+import { useClerk, useUser, UserButton } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
+import { Roles } from '@/types/globals';
+import { Link } from 'react-router-dom';
 
 // UI-only enhancements: improved styling & responsiveness. Functionality (openSignIn) unchanged.
 export default function Navbar() {
   const { openSignIn } = useClerk();
+  const { user } = useUser();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Get user role, default to 'user' if not set
+  const userRole = (user?.publicMetadata?.role as Roles) || Roles.User;
+  const isUserRole = user && userRole === Roles.User;
 
   const navLinks = [
     { label: 'About', href: '#about' },
@@ -13,6 +20,12 @@ export default function Navbar() {
     { label: 'Gallery', href: '#gallery' },
     { label: 'Prices', href: '#prices' },
     { label: 'Contact', href: '#contact' }
+  ];
+
+  // User-specific navigation links
+  const userNavLinks = [
+    { label: 'Appointment', href: '/appointment' },
+    { label: 'Notification', href: '/notification' }
   ];
 
   return (
@@ -62,16 +75,39 @@ export default function Navbar() {
                 <span className="absolute inset-x-0 -bottom-0.5 h-[2px] origin-left scale-x-0 bg-gradient-to-r from-blue-600 to-cyan-500 transition-transform group-hover:scale-x-100" />
               </a>
             ))}
+            {/* User-specific links */}
+            {isUserRole && userNavLinks.map(link => (
+              <Link
+                key={link.href}
+                to={link.href}
+                className="group relative py-2 text-sm uppercase tracking-wide text-gray-600 transition hover:text-gray-900"
+              >
+                {link.label}
+                <span className="absolute inset-x-0 -bottom-0.5 h-[2px] origin-left scale-x-0 bg-gradient-to-r from-blue-600 to-cyan-500 transition-transform group-hover:scale-x-100" />
+              </Link>
+            ))}
           </nav>
 
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <Button
-              onClick={() => openSignIn()}
-              className="relative hidden overflow-hidden rounded-full px-6 py-2 text-sm font-semibold uppercase tracking-wider text-white shadow md:inline-flex bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:via-blue-500 hover:to-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-            >
-              Login
-            </Button>
+            {user ? (
+              <div className="hidden md:flex items-center">
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-10 h-10"
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <Button
+                onClick={() => openSignIn()}
+                className="relative hidden overflow-hidden rounded-full px-6 py-2 text-sm font-semibold uppercase tracking-wider text-white shadow md:inline-flex bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-500 hover:via-blue-500 hover:to-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              >
+                Login
+              </Button>
+            )}
             {/* Mobile menu button */}
             <button
               type="button"
@@ -104,15 +140,38 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <Button
-              onClick={() => {
-                openSignIn();
-                setMenuOpen(false);
-              }}
-              className="mt-2 w-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 text-sm font-semibold uppercase tracking-wider text-white hover:from-blue-500 hover:via-blue-500 hover:to-cyan-400"
-            >
-              Login
-            </Button>
+            {/* User-specific links in mobile menu */}
+            {isUserRole && userNavLinks.map(link => (
+              <Link
+                key={link.href}
+                to={link.href}
+                onClick={() => setMenuOpen(false)}
+                className="rounded-md px-3 py-2 text-sm font-medium uppercase tracking-wide text-gray-700 hover:bg-gradient-to-r hover:from-blue-600/90 hover:to-cyan-500/90 hover:text-white"
+              >
+                {link.label}
+              </Link>
+            ))}
+            {user ? (
+              <div className="mt-2 flex items-center justify-center py-2">
+                <UserButton 
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-10 h-10"
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <Button
+                onClick={() => {
+                  openSignIn();
+                  setMenuOpen(false);
+                }}
+                className="mt-2 w-full bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 text-sm font-semibold uppercase tracking-wider text-white hover:from-blue-500 hover:via-blue-500 hover:to-cyan-400"
+              >
+                Login
+              </Button>
+            )}
           </nav>
         </div>
       </div>

@@ -7,8 +7,10 @@ import EmployeePage from "./pages/EmployeePage";
 import EmployeeTasks from "./pages/EmployeeTasks";
 import UserPage from "./pages/UserPage";
 import Appointment from "./pages/Appointment";
+import Notification from "./pages/Notification";
 import { Roles } from "./types/globals";
 import Login from "./pages/Login";
+import Navbar from "./components/Navbar";
 
 export default function App() {
   const { user } = useUser();
@@ -19,6 +21,7 @@ export default function App() {
   return (
     <Router>
       <div>
+        <Navbar/>
         <UserButton />
         {user ? (
           <>
@@ -62,6 +65,7 @@ export default function App() {
               <Route
                 path="/user"
                 element={
+                    
                   <RoleGuard role={Roles.User}>
                     <UserPage />
                   </RoleGuard>
@@ -72,6 +76,14 @@ export default function App() {
                 element={
                   <RoleGuard role={Roles.User}>
                     <Appointment />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/notification"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <Notification />
                   </RoleGuard>
                 }
               />
