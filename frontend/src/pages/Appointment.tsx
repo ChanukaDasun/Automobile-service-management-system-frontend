@@ -44,10 +44,10 @@ export default function Appointment() {
     try {
       // Mock data for now - replace with actual API call
       const mockVehicleTypes: VehicleType[] = [
-        { id: '1', name: 'CAR', description: 'Regular car service', serviceTime: 60 },
-        { id: '2', name: 'VAN', description: 'VAN service', serviceTime: 90 },
-        { id: '3', name: 'TRUCK', description: 'Truck service', serviceTime: 120 },
-        { id: '4', name: 'Motorcycle', description: 'Motorcycle service', serviceTime: 45 },
+        { id: '1', name: 'CAR', serviceTime: 60 },
+        { id: '2', name: 'VAN', serviceTime: 90 },
+        { id: '3', name: 'TRUCK', serviceTime: 120 },
+        { id: '4', name: 'Motorcycle', serviceTime: 45 },
       ];
       setVehicleTypes(mockVehicleTypes);
       
@@ -327,17 +327,6 @@ export default function Appointment() {
                   ) : (
                     <p className="text-center text-slate-500 py-8">No time slots available</p>
                   )}
-
-                  {/* Book Button */}
-                  {selectedTimeSlot && !availability.limitReached && (
-                    <Button 
-                      onClick={handleBookAppointment} 
-                      disabled={loading}
-                      className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600"
-                    >
-                      {loading ? 'Booking...' : `Book Appointment at ${selectedTimeSlot}`}
-                    </Button>
-                  )}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -345,6 +334,17 @@ export default function Appointment() {
                   <p className="text-slate-500">Select a date and vehicle type to view available slots</p>
                 </div>
               )}
+
+              {/* Book Button - Always visible at the bottom */}
+              <div className="mt-4">
+                <Button 
+                  onClick={handleBookAppointment} 
+                  disabled={!selectedDate || !vehicleType || !selectedTimeSlot || loading}
+                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Booking...' : 'Book Appointment'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
