@@ -3,6 +3,7 @@ import { useClerk, useUser, UserButton } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
 import { Roles } from '@/types/globals';
 import { Link, useNavigate } from 'react-router-dom';
+import { useNotificationContext } from '@/contexts/NotificationContext';
 
 // UI-only enhancements: improved styling & responsiveness. Functionality (openSignIn) unchanged.
 export default function Navbar() {
@@ -10,6 +11,7 @@ export default function Navbar() {
   const { user } = useUser();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const { notifications } = useNotificationContext();
 
   // Get user role, default to 'user' if not set
   const userRole = (user?.publicMetadata?.role as Roles) || Roles.User;
@@ -109,8 +111,12 @@ export default function Navbar() {
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
                     </svg>
-                    {/* Notification badge - you can conditionally show this based on unread count */}
-                    {/* <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span> */}
+                    {/* Notification badge with count */}
+                    {notifications.length > 0 && (
+                      <span className="absolute top-0 right-0 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                        {notifications.length > 9 ? '9+' : notifications.length}
+                      </span>
+                    )}
                   </button>
                 )}
                 
