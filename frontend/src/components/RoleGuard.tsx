@@ -9,21 +9,39 @@ interface RoleGuardProps {
 }
 
 export const RoleGuard = ({ role, children }: RoleGuardProps) => {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
   const userRole = user?.publicMetadata?.role as Roles | undefined
   
-  console.log('User Role:', userRole, 'Required Role:', role);
+  console.log('RoleGuard Check:', { 
+    isLoaded,
+    userId: user?.id,
+    userRole, 
+    requiredRole: role,
+    userMetadata: user?.publicMetadata 
+  });
 
-  if (!user) return <Navigate to="/login" /> // not logged in
+  // Wait for user data to load
+  if (!isLoaded) {
+    return <div>Loading...</div>
+  }
+
+  if (!user) {
+    console.log('No user found, redirecting to login');
+    return <Navigate to="/login" replace />
+  }
   
   // If user has no role, default to 'user' role
   const effectiveRole = userRole || Roles.User;
   
+  console.log('Effective Role:', effectiveRole, 'Required Role:', role);
+  
   // Check if user has the required role
   if (effectiveRole !== role) {
     console.log('Access denied: User role does not match required role');
-    return <Navigate to="/" /> // wrong role, redirect to home
+    console.log(`User has role "${effectiveRole}" but route requires "${role}"`);
+    return <Navigate to="/" replace />
   }
 
+  console.log('Access granted!');
   return <>{children}</>
 }
