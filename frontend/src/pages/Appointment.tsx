@@ -9,14 +9,34 @@ import type { DailyAvailability, VehicleType } from '@/types/appointment';
 import { Calendar, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { createAppointment } from "@/api/appointmentApi";
 
+// Appointment Types
+const appointmentTypes = [
+  {
+    id: 'basic',
+    name: 'Basic Service',
+    price: 'Rs.5,000',
+    features: ['Standard cleaning', 'Basic inspection', 'Oil check']
+  },
+  {
+    id: 'standard',
+    name: 'Standard Service',
+    price: 'Rs.10,000',
+    features: ['Deep cleaning', 'Full inspection', 'Oil change', 'Filter replacement']
+  },
+  {
+    id: 'premium',
+    name: 'Premium Service',
+    price: 'Rs.20,000',
+    features: ['Complete detailing', 'Comprehensive inspection', 'Oil change', 'All filters', 'Tire rotation']
+  }
+];
 
 export default function Appointment() {
   const { user } = useUser();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [vehicleType, setVehicleType] = useState<string>('');
-  const [availability, setAvailability] = useState<DailyAvailability | null>(null);
+  const [appointmentType, setAppointmentType] = useState<string>('');
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [error, setError] = useState<string>('');
@@ -31,16 +51,6 @@ export default function Appointment() {
   useEffect(() => {
     fetchVehicleTypes();
   }, []);
-
-  // Fetch availability when date or vehicle type changes
-  useEffect(() => {
-    if (selectedDate && vehicleType) {
-      fetchAvailability(selectedDate, vehicleType);
-    } else {
-      setAvailability(null);
-      setSelectedTimeSlot('');
-    }
-  }, [selectedDate, vehicleType]);
 
   const fetchVehicleTypes = async () => {
     try {
@@ -63,100 +73,52 @@ export default function Appointment() {
     }
   };
 
-  const fetchAvailability = async (date: string, _vehicleTypeId: string) => {
+  const handleBookAppointment = async () => {
+    if (!selectedDate || !vehicleType || !appointmentType) {
+      setError("Please select all required fields");
+      return;
+    }
+
+    if (!user) {
+      setError("You must be logged in to book an appointment");
+      return;
+    }
+
     try {
       setLoading(true);
-      setError('');
-      
-      // Mock data for now - replace with actual API call
-      // TODO: Use vehicleTypeId in API call: `/api/appointments/availability?date=${date}&vehicleType=${_vehicleTypeId}`
-      const mockAvailability: DailyAvailability = {
-        date: date,
-        totalSlots: 10,
-        bookedSlots: Math.floor(Math.random() * 10),
-        remainingSlots: 0,
-        limitReached: false,
-        timeSlots: [
-          { time: '09:00 AM', available: true },
-          { time: '10:00 AM', available: true },
-          { time: '11:00 AM', available: false, appointmentId: 'xxx' },
-          { time: '12:00 PM', available: true },
-          { time: '02:00 PM', available: true },
-          { time: '03:00 PM', available: false, appointmentId: 'yyy' },
-          { time: '04:00 PM', available: true },
-          { time: '05:00 PM', available: true },
-        ],
+      setError("");
+
+      const appointmentData = {
+        customerId: user.id,
+        vehicleType: vehicleTypes.find(vt => vt.id === vehicleType)?.name || "",
+        date: selectedDate,
+        appointmentType: appointmentTypes.find(at => at.id === appointmentType)?.name || "",
+        status: "pending",
       };
-      
-      // Calculate remaining slots based on available time slots
-      const availableCount = mockAvailability.timeSlots.filter(slot => slot.available).length;
-      mockAvailability.remainingSlots = availableCount;
-      mockAvailability.limitReached = availableCount === 0;
-      
-      setAvailability(mockAvailability);
-      
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/appointments/availability?date=${date}&vehicleType=${vehicleTypeId}`);
-      // const data = await response.json();
-      // setAvailability(data);
+
+      const response = await createAppointment(appointmentData);
+
+      console.log("✅ Appointment created:", response);
+      setBookingSuccess(true);
+      setAppointmentType("");
+
+      setTimeout(() => setBookingSuccess(false), 3000);
     } catch (error) {
-      console.error('Error fetching availability:', error);
-      setError('Failed to load availability');
+      console.error("Error booking appointment:", error);
+      setError("Failed to book appointment. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-const handleBookAppointment = async () => {
-  if (!selectedDate || !vehicleType || !selectedTimeSlot) {
-    setError("Please select all required fields");
-    return;
-  }
-
-  if (!user) {
-    setError("You must be logged in to book an appointment");
-    return;
-  }
-
-  try {
-    setLoading(true);
-    setError("");
-
-    const appointmentData = {
-      customerId: user.id,
-      vehicleType: vehicleTypes.find(vt => vt.id === vehicleType)?.name || "",
-      date: selectedDate,
-      status: "pending",
-    };
-
-    const response = await createAppointment(appointmentData);
-
-    console.log("✅ Appointment created:", response);
-    setBookingSuccess(true);
-    setSelectedTimeSlot("");
-
-    // Refresh availability
-    if (selectedDate && vehicleType) {
-      fetchAvailability(selectedDate, vehicleType);
-    }
-
-    setTimeout(() => setBookingSuccess(false), 3000);
-  } catch (error) {
-    console.error("Error booking appointment:", error);
-    setError("Failed to book appointment. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
-
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="mx-auto max-w-6xl">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">Book Your Appointment</h1>
-          <p className="text-slate-600">Select a date and time slot for your vehicle service</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Book Your Appointment</h1>
+          <p className="text-gray-600">Select a date and service type for your vehicle</p>
         </div>
 
         {/* Success Message */}
@@ -177,11 +139,11 @@ const handleBookAppointment = async () => {
 
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Selection Card */}
-          <Card className="shadow-lg">
+          <Card className="shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-blue-600" />
-                Select Date & Vehicle
+                <Calendar className="h-5 w-5 text-gray-700" />
+                Appointment Details
               </CardTitle>
               <CardDescription>Choose your preferred service date and vehicle type</CardDescription>
             </CardHeader>
@@ -198,9 +160,6 @@ const handleBookAppointment = async () => {
                       <SelectItem key={vt.id} value={vt.id}>
                         <div className="flex flex-col">
                           <span className="font-medium">{vt.name}</span>
-                          {vt.description && (
-                            <span className="text-xs text-slate-500">{vt.description}</span>
-                          )}
                         </div>
                       </SelectItem>
                     ))}
@@ -222,11 +181,10 @@ const handleBookAppointment = async () => {
               </div>
 
               {/* Info Box */}
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-900 mb-2">Important Information</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
+              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <h4 className="font-semibold text-gray-900 mb-2">Important Information</h4>
+                <ul className="text-sm text-gray-700 space-y-1">
                   <li>• Appointments are subject to availability</li>
-                  <li>• Daily appointment limits apply</li>
                   <li>• Please arrive 10 minutes early</li>
                   <li>• Cancellations require 24-hour notice</li>
                 </ul>
@@ -234,99 +192,52 @@ const handleBookAppointment = async () => {
             </CardContent>
           </Card>
 
-          {/* Available Time Slots Card */}
-          <Card className="shadow-lg">
+          {/* Appointment Type Selection Card */}
+          <Card className="shadow">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-blue-600" />
-                Available Time Slots
-              </CardTitle>
+              <CardTitle>Select Service Type</CardTitle>
               <CardDescription>
-                {availability 
-                  ? `${availability.remainingSlots} of ${availability.totalSlots} slots available`
-                  : 'Select date and vehicle type to view available slots'}
+                Choose the service package that best fits your needs
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
-              ) : availability ? (
-                <div className="space-y-4">
-                  {/* Availability Status */}
-                  <div className={`p-3 rounded-lg ${
-                    availability.limitReached 
-                      ? 'bg-red-50 border border-red-200' 
-                      : 'bg-green-50 border border-green-200'
-                  }`}>
-                    <p className="text-sm font-medium">
-                      <span className={availability.limitReached ? 'text-red-700' : 'text-green-700'}>
-                        {availability.limitReached 
-                          ? '❌ Daily limit reached - No slots available' 
-                          : `✓ ${availability.remainingSlots} slots remaining`}
-                      </span>
-                    </p>
-                    <p className="text-xs mt-1 text-slate-600">
-                      Date: {new Date(availability.date).toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                      })}
-                    </p>
-                  </div>
-
-                  {/* Time Slots Grid */}
-                  {!availability.limitReached && availability.timeSlots.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-3">
-                      {availability.timeSlots.map((slot) => (
-                        <Button
-                          key={slot.time}
-                          variant={selectedTimeSlot === slot.time ? 'default' : 'outline'}
-                          disabled={!slot.available}
-                          onClick={() => setSelectedTimeSlot(slot.time)}
-                          className={`w-full h-auto py-3 ${
-                            !slot.available 
-                              ? 'opacity-50 cursor-not-allowed' 
-                              : selectedTimeSlot === slot.time 
-                                ? 'bg-blue-600 hover:bg-blue-700' 
-                                : 'hover:bg-blue-50'
-                          }`}
-                        >
-                          <div className="flex flex-col items-center">
-                            <Clock className="h-4 w-4 mb-1" />
-                            <span className="font-semibold">{slot.time}</span>
-                            {!slot.available && (
-                              <span className="text-xs mt-1">Booked</span>
-                            )}
-                          </div>
-                        </Button>
-                      ))}
+              <div className="space-y-3">
+                {appointmentTypes.map((type) => {
+                  const isSelected = appointmentType === type.id;
+                  
+                  return (
+                    <div
+                      key={type.id}
+                      onClick={() => setAppointmentType(type.id)}
+                      className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                        isSelected 
+                          ? 'border-gray-900 bg-gray-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="font-semibold text-lg text-gray-900">{type.name}</h3>
+                        <span className="font-bold text-lg text-gray-900">{type.price}</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {type.features.map((feature, idx) => (
+                          <li key={idx} className="text-sm text-gray-600 flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                            {feature}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  ) : availability.limitReached ? (
-                    <div className="text-center py-8">
-                      <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
-                      <p className="text-red-600 font-medium">No slots available for this date</p>
-                      <p className="text-sm text-slate-600 mt-2">Please select a different date</p>
-                    </div>
-                  ) : (
-                    <p className="text-center text-slate-500 py-8">No time slots available</p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Calendar className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-500">Select a date and vehicle type to view available slots</p>
-                </div>
-              )}
+                  );
+                })}
+              </div>
 
-              {/* Book Button - Always visible at the bottom */}
-              <div className="mt-4">
+              {/* Book Button */}
+              <div className="mt-6">
                 <Button 
                   onClick={handleBookAppointment} 
-                  disabled={!selectedDate || !vehicleType || !selectedTimeSlot || loading}
-                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!selectedDate || !vehicleType || !appointmentType || loading}
+                  className="w-full h-12 text-base font-semibold bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                 >
                   {loading ? 'Booking...' : 'Book Appointment'}
                 </Button>
@@ -336,37 +247,37 @@ const handleBookAppointment = async () => {
         </div>
 
         {/* Additional Information */}
-        <Card className="mt-6 shadow-lg">
+        <Card className="mt-6 shadow">
           <CardHeader>
             <CardTitle>Service Information</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-3 gap-6">
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <CheckCircle2 className="h-5 w-5 text-gray-700" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-1">Quality Service</h4>
-                  <p className="text-sm text-slate-600">Professional mechanics with years of experience</p>
+                  <h4 className="font-semibold text-gray-900 mb-1">Professional Service</h4>
+                  <p className="text-sm text-gray-600">Experienced technicians and quality parts</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Clock className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Calendar className="h-5 w-5 text-gray-700" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-1">Timely Service</h4>
-                  <p className="text-sm text-slate-600">Service completed within scheduled time</p>
+                  <h4 className="font-semibold text-gray-900 mb-1">Flexible Scheduling</h4>
+                  <p className="text-sm text-gray-600">Multiple service packages to choose from</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Clock className="h-5 w-5 text-gray-700" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-1">Real-time Updates</h4>
-                  <p className="text-sm text-slate-600">Track your service progress live</p>
+                  <h4 className="font-semibold text-gray-900 mb-1">Timely Completion</h4>
+                  <p className="text-sm text-gray-600">Service completed as scheduled</p>
                 </div>
               </div>
             </div>
