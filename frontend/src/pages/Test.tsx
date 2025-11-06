@@ -1,13 +1,21 @@
-import { useUser } from '@clerk/clerk-react'
+import { useAuth } from '@clerk/clerk-react';
 
 function Test() {
-    const {user} = useUser();
-    console.log( user?.publicMetadata?.role);
+
+  const { getToken, userId } = useAuth();
+
+  const fetchData = async () => {
+    const token = await getToken({ template: 'test-template' });
+    console.log("Token:", token);
+    console.log("User ID:", userId);
+  }
+
+  fetchData();
+
   return (
     <div>
-        {/* { user?.publicMetadata?.role || ""} */}
     </div>
   )
 }
 
-export default Test
+export default Test;

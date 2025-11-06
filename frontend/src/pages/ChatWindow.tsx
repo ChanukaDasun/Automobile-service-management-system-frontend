@@ -4,6 +4,7 @@ import {
   sendMessage,
   disconnectWebSocket,
 } from '../api/webSocketService';
+import { useLocation } from 'react-router';
 
 interface ChatMessage {
   nickname: string;
@@ -16,6 +17,10 @@ export default function ChatWindow() {
   const [nickname, setNickname] = useState<string>('');
   const [content, setContent] = useState<string>('');
   const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
+
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const taskId = queryParams.get('taskId');
 
   useEffect(() => {
     if (nickname && connectionStatus === 'disconnected') {
