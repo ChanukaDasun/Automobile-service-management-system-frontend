@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { DailyAvailability, VehicleType } from '@/types/appointment';
-import { Calendar, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import type { VehicleType } from '@/types/appointment';
+import { Calendar, Clock, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { createAppointment } from "@/api/appointmentApi";
 
 // Appointment Types
@@ -88,24 +88,40 @@ export default function Appointment() {
       setLoading(true);
       setError("");
 
+      // UPDATED: Match backend API requirements with appointmentDate field
       const appointmentData = {
-        customerId: user.id,
-        vehicleType: vehicleTypes.find(vt => vt.id === vehicleType)?.name || "",
-        date: selectedDate,
-        appointmentType: appointmentTypes.find(at => at.id === appointmentType)?.name || "",
-        status: "pending",
+        clientId: user.id,
+        clientName: user.fullName || user.firstName || "Unknown Client",
+        description: `${appointmentTypes.find(at => at.id === appointmentType)?.name || "Service"} - ${vehicleTypes.find(vt => vt.id === vehicleType)?.name || "Vehicle"}`,
+        appointmentDate: selectedDate,  // ADDED: Required for daily limit validation
+        employeeId: "",  // Backend will auto-assign
+        employeeName: "",  // Backend will auto-assign
       };
 
       const response = await createAppointment(appointmentData);
 
-      console.log("✅ Appointment created:", response);
+      console.log("Appointment created:", response);
       setBookingSuccess(true);
+      
+      // Reset form after successful booking
       setAppointmentType("");
+      setVehicleType("");
+      setSelectedDate("");
 
-      setTimeout(() => setBookingSuccess(false), 3000);
-    } catch (error) {
+      setTimeout(() => setBookingSuccess(false), 5000);
+    } catch (error: any) {
       console.error("Error booking appointment:", error);
-      setError("Failed to book appointment. Please try again.");
+      
+      // UPDATED: Handle daily limit error specifically
+      const errorMessage = error.message || "Failed to book appointment. Please try again.";
+      
+      // Check if it's a daily limit error
+      if (errorMessage.toLowerCase().includes("daily limit") || 
+          errorMessage.toLowerCase().includes("limit reached")) {
+        setError("Daily appointment limit reached for this date. Please select a different date.");
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -131,9 +147,30 @@ export default function Appointment() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <p className="text-red-800">{error}</p>
+          <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+            error.includes("daily limit") || error.includes("limit reached") 
+              ? 'bg-amber-50 border border-amber-200' 
+              : 'bg-red-50 border border-red-200'
+          }`}>
+            {error.includes("daily limit") || error.includes("limit reached") ? (
+              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
+            )}
+            <div>
+              <p className={`font-medium ${
+                error.includes("daily limit") || error.includes("limit reached")
+                  ? 'text-amber-900'
+                  : 'text-red-900'
+              }`}>
+                {error}
+              </p>
+              {(error.includes("daily limit") || error.includes("limit reached")) && (
+                <p className="text-sm text-amber-700 mt-1">
+                  Tip: Try booking for a different date or contact us for assistance.
+                </p>
+              )}
+            </div>
           </div>
         )}
 
@@ -181,12 +218,16 @@ export default function Appointment() {
               </div>
 
               {/* Info Box */}
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <h4 className="font-semibold text-gray-900 mb-2">Important Information</h4>
-                <ul className="text-sm text-gray-700 space-y-1">
-                  <li>• Appointments are subject to availability</li>
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Important Information
+                </h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Limited appointments available per day</li>
                   <li>• Please arrive 10 minutes early</li>
                   <li>• Cancellations require 24-hour notice</li>
+                  <li>• Confirmation will be sent via email</li>
                 </ul>
               </div>
             </CardContent>
