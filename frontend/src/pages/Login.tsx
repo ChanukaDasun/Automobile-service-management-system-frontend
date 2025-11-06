@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 export default function Login() {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-slate-50 to-slate-100">
-      <Navbar />
 
       {/* Hero / Landing */}
       <section className="relative mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center gap-12 px-6 pb-24 pt-16 md:flex-row md:justify-between md:gap-6">

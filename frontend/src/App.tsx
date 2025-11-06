@@ -15,29 +15,20 @@ import Navbar from "./components/Navbar";
 export default function App() {
   const { user } = useUser();
 
-  // Get user role, default to 'user' if not set
-  const userRole = (user?.publicMetadata?.role as Roles) || Roles.User;
-
   return (
     <Router>
       <div>
         <Navbar/>
-        <UserButton />
-        {user ? (
-          <>
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  userRole === Roles.Admin ? (
-                    <Navigate to="/admin" />
-                  ) : userRole === Roles.Employee ? (
-                    <Navigate to="/employee" />
-                  ) : (
-                    <Navigate to="/user" />
-                  )
-                }
-              />
+        <Routes>
+          {/* Landing/Home page - accessible to everyone */}
+          <Route path="/" element={<Login />} />
+          
+          {/* Login route - redirect to landing page (same content) */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+
+          {/* Protected routes - require authentication */}
+          {user ? (
+            <>
               <Route
                 path="/admin"
                 element={
@@ -65,7 +56,6 @@ export default function App() {
               <Route
                 path="/user"
                 element={
-                    
                   <RoleGuard role={Roles.User}>
                     <UserPage />
                   </RoleGuard>
@@ -87,11 +77,12 @@ export default function App() {
                   </RoleGuard>
                 }
               />
-            </Routes>
-          </>
-        ) : (
-          <Login />
-        )}
+            </>
+          ) : (
+            // Redirect all other routes to login when not authenticated
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          )}
+        </Routes>
       </div>
     </Router>
   );

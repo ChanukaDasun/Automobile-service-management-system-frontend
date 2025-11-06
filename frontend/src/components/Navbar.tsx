@@ -53,15 +53,15 @@ export default function Navbar() {
         {/* Main navigation row */}
         <div className="flex h-20 w-full items-center justify-between">
           {/* Logo / Brand */}
-            <a
-              href="/"
+            <Link
+              to="/"
               className="relative flex items-center gap-2 text-2xl font-extrabold tracking-tight text-gray-900"
             >
               <span className="inline-block bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent">
                 AutoCare
               </span>
               <span className="hidden sm:inline text-gray-400">Service</span>
-            </a>
+            </Link>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 font-medium">
