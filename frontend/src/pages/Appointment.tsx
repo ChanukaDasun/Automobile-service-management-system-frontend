@@ -44,9 +44,9 @@ export default function Appointment() {
     try {
       // Mock data for now - replace with actual API call
       const mockVehicleTypes: VehicleType[] = [
-        { id: '1', name: 'Sedan', description: 'Regular car service', serviceTime: 60 },
-        { id: '2', name: 'SUV', description: 'SUV service', serviceTime: 90 },
-        { id: '3', name: 'Truck', description: 'Truck service', serviceTime: 120 },
+        { id: '1', name: 'CAR', description: 'Regular car service', serviceTime: 60 },
+        { id: '2', name: 'VAN', description: 'VAN service', serviceTime: 90 },
+        { id: '3', name: 'TRUCK', description: 'Truck service', serviceTime: 120 },
         { id: '4', name: 'Motorcycle', description: 'Motorcycle service', serviceTime: 45 },
       ];
       setVehicleTypes(mockVehicleTypes);
