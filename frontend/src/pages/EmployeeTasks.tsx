@@ -1,21 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import type { Appointment } from '@/types/appointment';
-import { Calendar, Clock, CheckCircle2, AlertCircle, Car, Play, Check } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, AlertCircle, Car, Play, Check, Edit3, Save, X } from 'lucide-react';
 
 export default function EmployeeTasks() {
   const { user } = useUser();
   const [tasks, setTasks] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
+  const [estimateInput, setEstimateInput] = useState<string>('');
 
-  useEffect(() => {
-    fetchTasks();
-  }, [user]);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -32,6 +31,7 @@ export default function EmployeeTasks() {
           assignedEmployeeId: user?.id,
           assignedEmployeeName: `${user?.firstName} ${user?.lastName}`,
           description: 'Oil change and tire rotation',
+          estimatedCompletion: undefined, // No estimate set yet
           createdAt: new Date().toISOString(),
         },
         {
@@ -41,10 +41,11 @@ export default function EmployeeTasks() {
           vehicleType: 'SUV',
           appointmentDate: new Date().toISOString().split('T')[0],
           timeSlot: '11:00 AM',
-          status: 'assigned',
+          status: 'in-progress',
           assignedEmployeeId: user?.id,
           assignedEmployeeName: `${user?.firstName} ${user?.lastName}`,
           description: 'Full service inspection',
+          estimatedCompletion: '13:30', // Employee has set estimate
           createdAt: new Date().toISOString(),
         },
         {
@@ -86,7 +87,11 @@ export default function EmployeeTasks() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, user?.firstName, user?.lastName]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   const handleUpdateStatus = async (taskId: string, newStatus: Appointment['status']) => {
     try {
@@ -119,6 +124,62 @@ export default function EmployeeTasks() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  // 🆕 Function to handle setting estimated completion time
+  const handleSetEstimatedCompletion = async (taskId: string, estimatedTime: string) => {
+    try {
+      setUpdatingId(taskId);
+
+      // Validate time format (simple validation)
+      if (!estimatedTime || !estimatedTime.match(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
+        alert('Please enter a valid time in HH:MM format (e.g., 14:30)');
+        return;
+      }
+
+      console.log('Setting estimated completion:', { taskId, estimatedTime });
+
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Update local state
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId ? { ...task, estimatedCompletion: estimatedTime } : task
+        )
+      );
+
+      // Clear editing state
+      setEditingEstimateId(null);
+      setEstimateInput('');
+
+      // TODO: Replace with actual API call
+      // const response = await fetch(`/api/employee/tasks/${taskId}/estimated-completion`, {
+      //   method: 'PATCH',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ estimatedCompletion: estimatedTime }),
+      // });
+      // if (response.ok) {
+      //   const updated = await response.json();
+      //   setTasks(prev => prev.map(task => task.id === taskId ? updated : task));
+      // }
+    } catch (error) {
+      console.error('Error setting estimated completion:', error);
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  // 🆕 Function to start editing estimated completion
+  const startEditingEstimate = (taskId: string, currentEstimate?: string) => {
+    setEditingEstimateId(taskId);
+    setEstimateInput(currentEstimate || '');
+  };
+
+  // 🆕 Function to cancel editing
+  const cancelEditingEstimate = () => {
+    setEditingEstimateId(null);
+    setEstimateInput('');
   };
 
   const getStatusBadge = (status: Appointment['status']) => {
@@ -264,6 +325,62 @@ export default function EmployeeTasks() {
                                 Note: {task.description}
                               </p>
                             )}
+                            
+                            {/* 🆕 Estimated Completion Time Section */}
+                            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-gray-500" />
+                                  <span className="text-sm font-medium text-gray-700">
+                                    Estimated Completion:
+                                  </span>
+                                </div>
+                                
+                                {editingEstimateId === task.id ? (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="time"
+                                      value={estimateInput}
+                                      onChange={(e) => setEstimateInput(e.target.value)}
+                                      className="w-32 h-8 text-sm"
+                                      placeholder="HH:MM"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleSetEstimatedCompletion(task.id, estimateInput)}
+                                      disabled={updatingId === task.id}
+                                      className="h-8 px-2"
+                                    >
+                                      <Save className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={cancelEditingEstimate}
+                                      className="h-8 px-2"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-600">
+                                      {task.estimatedCompletion || (
+                                        <span className="text-orange-600 font-medium">Not set</span>
+                                      )}
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => startEditingEstimate(task.id, task.estimatedCompletion)}
+                                      className="h-8 px-2"
+                                    >
+                                      <Edit3 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
                           {/* Action Buttons */}

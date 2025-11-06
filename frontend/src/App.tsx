@@ -5,7 +5,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import AdminPage from "./pages/AdminPage";
 import EmployeePage from "./pages/EmployeePage";
 import EmployeeTasks from "./pages/EmployeeTasks";
-import UserPage from "./pages/UserPage";
+import ClientDashboard from "./pages/ClientDashboard";
 import Appointment from "./pages/Appointment";
 import Notification from "./pages/Notification";
 import { Roles } from "./types/globals";
@@ -57,7 +57,7 @@ export default function App() {
                 path="/user"
                 element={
                   <RoleGuard role={Roles.User}>
-                    <UserPage />
+                    <ClientDashboard />
                   </RoleGuard>
                 }
               />
