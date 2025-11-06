@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { DailyAvailability, VehicleType } from '@/types/appointment';
 import { Calendar, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { createAppointment } from "@/api/appointmentApi";
+
 
 export default function Appointment() {
   const { user } = useUser();
@@ -105,64 +107,48 @@ export default function Appointment() {
     }
   };
 
-  const handleBookAppointment = async () => {
-    if (!selectedDate || !vehicleType || !selectedTimeSlot) {
-      setError('Please select all required fields');
-      return;
+const handleBookAppointment = async () => {
+  if (!selectedDate || !vehicleType || !selectedTimeSlot) {
+    setError("Please select all required fields");
+    return;
+  }
+
+  if (!user) {
+    setError("You must be logged in to book an appointment");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    setError("");
+
+    const appointmentData = {
+      customerId: user.id,
+      vehicleType: vehicleTypes.find(vt => vt.id === vehicleType)?.name || "",
+      date: selectedDate,
+      status: "pending",
+    };
+
+    const response = await createAppointment(appointmentData);
+
+    console.log("✅ Appointment created:", response);
+    setBookingSuccess(true);
+    setSelectedTimeSlot("");
+
+    // Refresh availability
+    if (selectedDate && vehicleType) {
+      fetchAvailability(selectedDate, vehicleType);
     }
 
-    if (!user) {
-      setError('You must be logged in to book an appointment');
-      return;
-    }
+    setTimeout(() => setBookingSuccess(false), 3000);
+  } catch (error) {
+    console.error("Error booking appointment:", error);
+    setError("Failed to book appointment. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
-    try {
-      setLoading(true);
-      setError('');
-      
-      // TODO: Replace with actual API call
-      const appointmentData = {
-        clientId: user.id,
-        clientName: `${user.firstName} ${user.lastName}`,
-        appointmentDate: selectedDate,
-        timeSlot: selectedTimeSlot,
-        vehicleType: vehicleTypes.find(vt => vt.id === vehicleType)?.name || '',
-        status: 'pending',
-      };
-      
-      console.log('Booking appointment:', appointmentData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // const response = await fetch('/api/appointments', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(appointmentData),
-      // });
-
-      // if (response.ok) {
-        setBookingSuccess(true);
-        setSelectedTimeSlot('');
-        
-        // Refresh availability
-        if (selectedDate && vehicleType) {
-          fetchAvailability(selectedDate, vehicleType);
-        }
-        
-        // Reset success message after 3 seconds
-        setTimeout(() => setBookingSuccess(false), 3000);
-      // } else {
-      //   const error = await response.json();
-      //   setError(error.message || 'Failed to book appointment');
-      // }
-    } catch (error) {
-      console.error('Error booking appointment:', error);
-      setError('Failed to book appointment. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-6">
