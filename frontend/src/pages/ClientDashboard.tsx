@@ -11,7 +11,6 @@ import {
   Clock, 
   Car, 
   MessageCircle, 
-  Bell, 
   CheckCircle2, 
   AlertCircle, 
   History,
@@ -34,15 +33,7 @@ interface OngoingAppointment {
   completedAt?: string; // Timestamp when service was completed
 }
 
-interface Notification {
-  id: string;
-  clientId: string; // Added clientId to track user ownership
-  type: 'info' | 'warning' | 'success';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
+
 
 interface ChatMessage {
   id: string;
@@ -72,7 +63,6 @@ export default function ClientDashboard() {
   // const { getToken } = useAuth(); // 👈 Add this when implementing real API
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [ongoingAppointments, setOngoingAppointments] = useState<OngoingAppointment[]>([]);
   const [appointmentHistory, setAppointmentHistory] = useState<AppointmentHistory[]>([]);
@@ -91,7 +81,6 @@ export default function ClientDashboard() {
   // This component now filters all data based on the current user's ID from Clerk
   // In a real application, you would replace the mock data with API calls like:
   // - GET /api/appointments?clientId=${user.id}
-  // - GET /api/notifications?clientId=${user.id}
   // - GET /api/chat-messages?clientId=${user.id}
   // - GET /api/appointment-history?clientId=${user.id}
 
@@ -155,53 +144,7 @@ export default function ClientDashboard() {
         ];
         setOngoingAppointments(mockOngoingAppointments);
 
-        // 2. GET /api/notifications?clientId=${user.id}
-        // Replace the mock notifications array with:
-        /*
-        const notificationsResponse = await fetch(`/api/notifications?clientId=${currentUserId}`, {
-          headers: {
-            'Authorization': `Bearer ${await getToken()}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        const notificationsData = await notificationsResponse.json();
-        setNotifications(notificationsData);
-        */
-
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockNotifications: Notification[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            type: 'success',
-            title: 'Service Completed!',
-            message: 'Your oil change has been completed successfully. Vehicle is ready for pickup!',
-            time: '5 minutes ago',
-            read: false
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            type: 'success',
-            title: 'Service Update',
-            message: 'Your oil change is currently in progress',
-            time: '10 minutes ago',
-            read: true
-          },
-          {
-            id: '3',
-            clientId: currentUserId,
-            type: 'info',
-            title: 'Appointment Confirmed',
-            message: 'Your brake service is scheduled for Nov 5th',
-            time: '2 hours ago',
-            read: false
-          }
-          // Completion notification added
-        ];
-        setNotifications(mockNotifications);
-
-        // 3. GET /api/chat-messages?clientId=${user.id}
+        // 2. GET /api/chat-messages?clientId=${user.id}
         // Replace the mock chat messages array with:
         /*
         const chatResponse = await fetch(`/api/chat-messages?clientId=${currentUserId}`, {
@@ -336,27 +279,6 @@ export default function ClientDashboard() {
     return () => clearInterval(interval);
   }, [ongoingAppointments]);
 
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(notifications.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
-  };
-
-  // 🆕 Handle notification click - open rating for completed services
-  const handleNotificationClick = (notification: Notification) => {
-    markNotificationAsRead(notification.id);
-    
-    // If it's a completion notification, open rating modal
-    if (notification.title.includes('Service Completed')) {
-      const relatedAppointment = ongoingAppointments.find(app => 
-        app.serviceType.toLowerCase().includes('oil') // Match service type
-      ) || appointmentHistory[0]; // Fallback to recent history
-      
-      setRatingAppointment(relatedAppointment);
-      setShowRatingModal(true);
-    }
-  };
-
   // 🆕 Submit rating function
   const submitRating = async () => {
     try {
@@ -473,9 +395,7 @@ export default function ClientDashboard() {
           <div className="flex space-x-8 border-b">
             {[
               { id: 'overview', label: 'Overview', icon: <Car className="h-4 w-4" /> },
-              { id: 'appointments', label: 'Appointments', icon: <Calendar className="h-4 w-4" /> },
               { id: 'progress', label: 'Progress', icon: <Clock className="h-4 w-4" /> },
-              { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
               { id: 'history', label: 'History', icon: <History className="h-4 w-4" /> }
             ].map((tab) => (
               <button
@@ -499,10 +419,10 @@ export default function ClientDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-6">
             {/* Quick Stats */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card 
                   className="cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => setActiveTab('progress')}
@@ -528,22 +448,6 @@ export default function ClientDashboard() {
                   <CardContent>
                     <div className="text-2xl font-bold">{appointmentHistory.length}</div>
                     <p className="text-xs text-muted-foreground">This year</p>
-                  </CardContent>
-                </Card>
-                
-                <Card 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => setActiveTab('notifications')}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Notifications</CardTitle>
-                    <Bell className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {notifications.filter(n => !n.read).length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Unread messages</p>
                   </CardContent>
                 </Card>
               </div>
@@ -582,37 +486,6 @@ export default function ClientDashboard() {
                         <p className="text-xs text-gray-400">Your recent activity will appear here</p>
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Recent Notifications */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Notifications</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {notifications.slice(0, 3).map((notification) => (
-                      <div 
-                        key={notification.id}
-                        className={`p-3 rounded-lg border cursor-pointer hover:bg-gray-50 ${
-                          !notification.read ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
-                        }`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-start space-x-2">
-                          <Bell className="h-4 w-4 mt-0.5 text-gray-400" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{notification.title}</p>
-                            <p className="text-xs text-gray-500">{notification.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -757,51 +630,6 @@ export default function ClientDashboard() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-
-        {/* Notifications Tab */}
-        {activeTab === 'notifications' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Notifications</h2>
-            </div>
-            
-            <div className="space-y-4">
-              {notifications.map((notification) => (
-                <Card 
-                  key={notification.id}
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${
-                    !notification.read ? 'ring-2 ring-blue-100' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className={`p-2 rounded-full ${
-                        notification.type === 'success' ? 'bg-green-100' :
-                        notification.type === 'warning' ? 'bg-yellow-100' : 'bg-blue-100'
-                      }`}>
-                        <Bell className={`h-4 w-4 ${
-                          notification.type === 'success' ? 'text-green-600' :
-                          notification.type === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-                        }`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-semibold">{notification.title}</h4>
-                          <span className="text-sm text-gray-500">{notification.time}</span>
-                        </div>
-                        <p className="text-gray-600 mt-1">{notification.message}</p>
-                      </div>
-                      {!notification.read && (
-                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           </div>
         )}
 
