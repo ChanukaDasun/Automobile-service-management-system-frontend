@@ -1,20 +1,89 @@
-import { Button } from "./components/ui/button"
-import { useClerk, UserButton, useUser } from "@clerk/clerk-react"
+// src/App.tsx
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useUser } from "@clerk/clerk-react";
+import { RoleGuard } from "@/components/RoleGuard";
+import AdminPage from "./pages/AdminPage";
+import EmployeePage from "./pages/EmployeePage";
+import EmployeeTasks from "./pages/EmployeeTasks";
+import ClientDashboard from "./pages/ClientDashboard";
+import Appointment from "./pages/Appointment";
+import Notification from "./pages/Notification";
+import { Roles } from "./types/globals";
+import Login from "./pages/Login";
+import Navbar from "./components/Navbar";
 
 export default function App() {
-
-  const { user } = useUser()
-  const { openSignIn } = useClerk()
+  const { user } = useUser();
 
   return (
-    /** here is the button to logged in want to impliment more **/
-    <div>
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4">
-        {
-          !user ? (<Button onClick={() =>openSignIn}>Login</Button>) : (<UserButton />)
-        }
-        
+    <Router>
+      <div>
+        <Navbar/>
+        <Routes>
+          {/* Landing/Home page - accessible to everyone */}
+          <Route path="/" element={<Login />} />
+          
+          {/* Login route - redirect to landing page (same content) */}
+          <Route path="/login" element={<Navigate to="/" replace />} />
+
+          {/* Protected routes - require authentication */}
+          {user ? (
+            <>
+              <Route
+                path="/admin"
+                element={
+                  <RoleGuard role={Roles.Admin}>
+                    <AdminPage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/employee"
+                element={
+                  <RoleGuard role={Roles.Employee}>
+                    <EmployeePage />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/employee/tasks"
+                element={
+                  <RoleGuard role={Roles.Employee}>
+                    <EmployeeTasks />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/user-dashboard"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <ClientDashboard />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/appointment"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <Appointment />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/notification"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <Notification />
+                  </RoleGuard>
+                }
+              />
+            </>
+          ) : (
+            // Redirect all other routes to login when not authenticated
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          )}
+        </Routes>
       </div>
-    </div>
-  )
+    </Router>
+  );
 }
