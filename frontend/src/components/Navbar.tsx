@@ -2,17 +2,25 @@ import { useState } from 'react';
 import { useClerk, useUser, UserButton } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
 import { Roles } from '@/types/globals';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 // UI-only enhancements: improved styling & responsiveness. Functionality (openSignIn) unchanged.
 export default function Navbar() {
   const { openSignIn } = useClerk();
   const { user } = useUser();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Get user role, default to 'user' if not set
   const userRole = (user?.publicMetadata?.role as Roles) || Roles.User;
   const isUserRole = user && userRole === Roles.User;
+
+  // Get dashboard route based on user role
+  const getDashboardRoute = () => {
+    if (userRole === Roles.Admin) return "/admin";
+    if (userRole === Roles.Employee) return "/employee";
+    return "/user-dashboard";
+  };
 
   const navLinks = [
     { label: 'About', href: '#about' },
@@ -24,8 +32,7 @@ export default function Navbar() {
 
   // User-specific navigation links
   const userNavLinks = [
-    { label: 'Appointment', href: '/appointment' },
-    { label: 'Notification', href: '/notification' }
+    { label: 'Appointment', href: '/appointment' }
   ];
 
   return (
@@ -91,14 +98,41 @@ export default function Navbar() {
           {/* Actions */}
           <div className="flex items-center gap-3">
             {user ? (
-              <div className="hidden md:flex items-center">
+              <div className="hidden md:flex items-center gap-3">
+                {/* Notification Icon */}
+                {isUserRole && (
+                  <button
+                    onClick={() => navigate('/notification')}
+                    className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors rounded-full hover:bg-gray-100"
+                    aria-label="Notifications"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                    </svg>
+                    {/* Notification badge - you can conditionally show this based on unread count */}
+                    {/* <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span> */}
+                  </button>
+                )}
+                
                 <UserButton 
                   appearance={{
                     elements: {
                       avatarBox: "w-10 h-10"
                     }
                   }}
-                />
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Action
+                      label="Dashboard"
+                      labelIcon={
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                        </svg>
+                      }
+                      onClick={() => navigate(getDashboardRoute())}
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
               </div>
             ) : (
               <Button
@@ -159,7 +193,19 @@ export default function Navbar() {
                       avatarBox: "w-10 h-10"
                     }
                   }}
-                />
+                >
+                  <UserButton.MenuItems>
+                    <UserButton.Action
+                      label="Dashboard"
+                      labelIcon={
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                        </svg>
+                      }
+                      onClick={() => navigate(getDashboardRoute())}
+                    />
+                  </UserButton.MenuItems>
+                </UserButton>
               </div>
             ) : (
               <Button

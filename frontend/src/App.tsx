@@ -1,6 +1,6 @@
 // src/App.tsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { UserButton, useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import AdminPage from "./pages/AdminPage";
 import EmployeePage from "./pages/EmployeePage";
@@ -54,7 +54,7 @@ export default function App() {
                 }
               />
               <Route
-                path="/user"
+                path="/user-dashboard"
                 element={
                   <RoleGuard role={Roles.User}>
                     <ClientDashboard />
