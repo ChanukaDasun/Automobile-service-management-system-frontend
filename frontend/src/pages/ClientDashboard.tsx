@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 // import { useAuth } from "@clerk/clerk-react"; // 👈 Add this when implementing real API
 import { useNavigate } from "react-router-dom";
+import { getUserAppointments } from "@/api/appointmentApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,22 @@ interface AppointmentHistory {
   completedDate?: string; // When the service was actually completed
 }
 
+// Backend appointment data interface
+interface BackendAppointment {
+  appoinmentId?: string;
+  id?: string;
+  customerId?: string;
+  customerName?: string;
+  employeeId?: string;
+  employeeName?: string;
+  description?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  vehicleType?: string;
+  timeSlot?: string;
+}
+
 export default function ClientDashboard() {
   const { user } = useUser();
   // const { getToken } = useAuth(); // 👈 Add this when implementing real API
@@ -66,6 +83,10 @@ export default function ClientDashboard() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [ongoingAppointments, setOngoingAppointments] = useState<OngoingAppointment[]>([]);
   const [appointmentHistory, setAppointmentHistory] = useState<AppointmentHistory[]>([]);
+  
+  // 🆕 API loading states
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
   
   // 🆕 Rating modal state
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -76,6 +97,37 @@ export default function ClientDashboard() {
   // 🆕 Appointment-specific chat state
   const [expandedChats, setExpandedChats] = useState<Record<string, boolean>>({});
   const [appointmentMessages, setAppointmentMessages] = useState<Record<string, string>>({});
+
+  // 🆕 Refresh appointments function
+  const refreshAppointments = async () => {
+    const currentUserId = user?.id;
+    if (!currentUserId) return;
+
+    try {
+      setAppointmentsLoading(true);
+      setAppointmentsError(null);
+      
+      const appointmentsData = await getUserAppointments(currentUserId);
+      const mappedAppointments: OngoingAppointment[] = appointmentsData.map((apt: BackendAppointment) => ({
+        id: apt.appoinmentId || apt.id || '',
+        clientId: apt.customerId || currentUserId,
+        vehicleType: apt.vehicleType || 'Not specified',
+        serviceType: apt.description || 'Service',
+        date: apt.createdAt ? apt.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        timeSlot: apt.timeSlot || 'TBD',
+        status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
+        employeeName: apt.employeeName || 'Unassigned',
+        completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined
+      }));
+      
+      setOngoingAppointments(mappedAppointments);
+    } catch (error) {
+      console.error('Error refreshing appointments:', error);
+      setAppointmentsError('Failed to refresh appointments.');
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  };
 
   // USER-SPECIFIC DATA FILTERING:
   // This component now filters all data based on the current user's ID from Clerk
@@ -90,59 +142,41 @@ export default function ClientDashboard() {
       // Get current user ID from Clerk
       const currentUserId = user?.id;
       
+      // DEBUG: Log user information
+      console.log('Current user from Clerk:', user);
+      console.log('User ID for API call:', currentUserId);
+      
       if (!currentUserId) return;
 
       try {
-        // 🔄 REPLACE MOCK DATA WITH THESE API CALLS:
+        // 🔄 REAL API IMPLEMENTATION:
+        setAppointmentsLoading(true);
+        setAppointmentsError(null);
 
-        // 1. GET /api/appointments?clientId=${user.id}
-        // Replace the mock appointments array with:
-        /*
-        const appointmentsResponse = await fetch(`/api/appointments?clientId=${currentUserId}`, {
-          headers: {
-            'Authorization': `Bearer ${await getToken()}`, // Clerk auth token
-            'Content-Type': 'application/json'
-          }
-        });
-        const appointmentsData = await appointmentsResponse.json();
-        setOngoingAppointments(appointmentsData.filter(app => app.status !== 'completed'));
-        */
-
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockOngoingAppointments: OngoingAppointment[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Oil Change & Inspection',
-            date: '2025-11-03',
-            timeSlot: '10:00 AM',
-            status: 'in-progress',
-            employeeName: 'John Smith'
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            vehicleType: 'SUV',
-            serviceType: 'Brake Service',
-            date: '2025-11-05',
-            timeSlot: '2:00 PM',
-            status: 'assigned',
-            employeeName: 'Mike Johnson'
-          },
-          {
-            id: '3',
-            clientId: currentUserId,
-            vehicleType: 'Hatchback',
-            serviceType: 'Tire Replacement',
-            date: '2025-11-02',
-            timeSlot: '9:00 AM',
-            status: 'completed',
-            employeeName: 'Sarah Davis',
-            completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() // Completed 30 minutes ago (will move to history in 30 min)
-          }
-        ];
-        setOngoingAppointments(mockOngoingAppointments);
+        // 1. GET appointments for current user from backend
+        const appointmentsData = await getUserAppointments(currentUserId);
+        
+        // DEBUG: Log the raw data from backend
+        console.log('Raw appointments data from backend:', appointmentsData);
+        console.log('Current user ID:', currentUserId);
+        
+        // Map backend data to frontend interface
+        const mappedAppointments: OngoingAppointment[] = appointmentsData.map((apt: BackendAppointment) => ({
+          id: apt.appoinmentId || apt.id,
+          clientId: apt.customerId || currentUserId,
+          vehicleType: apt.vehicleType || 'Not specified',
+          serviceType: apt.description || 'Service',
+          date: apt.createdAt ? apt.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          timeSlot: apt.timeSlot || 'TBD',
+          status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
+          employeeName: apt.employeeName || 'Unassigned',
+          completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined
+        }));
+        
+        // DEBUG: Log the mapped appointments
+        console.log('Mapped appointments for display:', mappedAppointments);
+        
+        setOngoingAppointments(mappedAppointments);
 
         // 2. GET /api/chat-messages?clientId=${user.id}
         // Replace the mock chat messages array with:
@@ -228,7 +262,12 @@ export default function ClientDashboard() {
 
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // Handle error appropriately (show error message, fallback data, etc.)
+        setAppointmentsError('Failed to load appointments. Please try again.');
+        // Fallback to empty arrays on error
+        setOngoingAppointments([]);
+        setAppointmentHistory([]);
+      } finally {
+        setAppointmentsLoading(false);
       }
     };
 
@@ -455,12 +494,43 @@ export default function ClientDashboard() {
               {/* Recent Activity */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your latest service updates</CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Recent Activity</CardTitle>
+                      <CardDescription>Your latest service updates</CardDescription>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={refreshAppointments}
+                      disabled={appointmentsLoading}
+                      className="h-8 w-8 p-0"
+                    >
+                      <div className={appointmentsLoading ? 'animate-spin' : ''}>
+                        🔄
+                      </div>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {ongoingAppointments.length > 0 ? (
+                    {appointmentsLoading ? (
+                      <div className="text-center py-6">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="text-sm text-gray-500 mt-2">Loading appointments...</p>
+                      </div>
+                    ) : appointmentsError ? (
+                      <div className="text-center py-6">
+                        <AlertCircle className="h-8 w-8 text-red-300 mx-auto mb-2" />
+                        <p className="text-sm text-red-500">{appointmentsError}</p>
+                        <button 
+                          onClick={() => window.location.reload()} 
+                          className="text-xs text-blue-600 hover:underline mt-1"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    ) : ongoingAppointments.length > 0 ? (
                       ongoingAppointments.slice(0, 2).map((appointment) => (
                         <div key={appointment.id} className="flex items-center space-x-4">
                           <div className="flex-shrink-0">
@@ -498,10 +568,44 @@ export default function ClientDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Your Appointments</h2>
+              <Button 
+                variant="outline" 
+                onClick={refreshAppointments}
+                disabled={appointmentsLoading}
+                className="flex items-center gap-2"
+              >
+                <div className={appointmentsLoading ? 'animate-spin' : ''}>
+                  🔄
+                </div>
+                Refresh
+              </Button>
             </div>
             
-            <div className="grid gap-6">
-              {ongoingAppointments.map((appointment) => (
+            {appointmentsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading your appointments...</p>
+              </div>
+            ) : appointmentsError ? (
+              <div className="text-center py-12">
+                <AlertCircle className="h-12 w-12 text-red-300 mx-auto mb-4" />
+                <p className="text-red-500 mb-2">{appointmentsError}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="text-blue-600 hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : ongoingAppointments.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No appointments found</p>
+                <p className="text-sm text-gray-400">Your appointments will appear here</p>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {ongoingAppointments.map((appointment) => (
                 <Card key={appointment.id}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -529,8 +633,9 @@ export default function ClientDashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
