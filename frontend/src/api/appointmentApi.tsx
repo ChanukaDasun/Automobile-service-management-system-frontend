@@ -46,3 +46,19 @@ export const getAppointments = async () => {
     throw error;
   }
 };
+
+export const getUserAppointments = async (clientId: string) => {
+  try {
+    const response = await axios.get(`${API_URL}/client/${clientId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching user appointments:", error);
+    
+    if (error.response?.data) {
+      const errorData: AppointmentError = error.response.data;
+      throw new Error(errorData.message || "Failed to fetch user appointments");
+    }
+    
+    throw new Error("Network error. Please try again.");
+  }
+};
