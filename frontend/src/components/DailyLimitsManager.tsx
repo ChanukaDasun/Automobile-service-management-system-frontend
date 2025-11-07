@@ -36,10 +36,13 @@ export default function DailyLimitsManager() {
   const fetchDailyLimits = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/daily-limits');
+      // UPDATED: Connect to actual backend API
+      const response = await fetch('http://localhost:9000/api/admin/daily-limits');
       if (response.ok) {
         const data = await response.json();
         setLimits(data);
+      } else {
+        console.error('Failed to fetch daily limits:', response.status);
       }
     } catch (error) {
       console.error('Error fetching daily limits:', error);
@@ -61,7 +64,8 @@ export default function DailyLimitsManager() {
     }
 
     try {
-      const response = await fetch('/api/admin/daily-limits', {
+      // UPDATED: Connect to actual backend API
+      const response = await fetch('http://localhost:9000/api/admin/daily-limits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -78,7 +82,8 @@ export default function DailyLimitsManager() {
         setFormNotes('');
         setShowAddForm(false);
       } else {
-        alert('Failed to add daily limit');
+        const error = await response.json();
+        alert(`Failed to add daily limit: ${error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error adding daily limit:', error);
@@ -100,7 +105,8 @@ export default function DailyLimitsManager() {
     }
 
     try {
-      const response = await fetch(`/api/admin/daily-limits/${id}`, {
+      // UPDATED: Connect to actual backend API
+      const response = await fetch(`http://localhost:9000/api/admin/daily-limits/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -113,7 +119,8 @@ export default function DailyLimitsManager() {
         await fetchDailyLimits();
         setEditingId(null);
       } else {
-        alert('Failed to update daily limit');
+        const error = await response.json();
+        alert(`Failed to update daily limit: ${error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating daily limit:', error);
@@ -133,14 +140,16 @@ export default function DailyLimitsManager() {
     }
 
     try {
-      const response = await fetch(`/api/admin/daily-limits/${id}`, {
+      // UPDATED: Connect to actual backend API
+      const response = await fetch(`http://localhost:9000/api/admin/daily-limits/${id}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
         await fetchDailyLimits();
       } else {
-        alert('Failed to delete daily limit');
+        const error = await response.json();
+        alert(`Failed to delete daily limit: ${error.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting daily limit:', error);

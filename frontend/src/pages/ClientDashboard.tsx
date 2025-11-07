@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 // import { useAuth } from "@clerk/clerk-react"; // 👈 Add this when implementing real API
 import { useNavigate } from "react-router-dom";
+import { getUserAppointments } from "@/api/appointmentApi";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,6 @@ import {
   Clock, 
   Car, 
   MessageCircle, 
-  Bell, 
   CheckCircle2, 
   AlertCircle, 
   History,
@@ -34,15 +34,7 @@ interface OngoingAppointment {
   completedAt?: string; // Timestamp when service was completed
 }
 
-interface Notification {
-  id: string;
-  clientId: string; // Added clientId to track user ownership
-  type: 'info' | 'warning' | 'success';
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
+
 
 interface ChatMessage {
   id: string;
@@ -67,15 +59,34 @@ interface AppointmentHistory {
   completedDate?: string; // When the service was actually completed
 }
 
+// Backend appointment data interface
+interface BackendAppointment {
+  appoinmentId?: string;
+  id?: string;
+  customerId?: string;
+  customerName?: string;
+  employeeId?: string;
+  employeeName?: string;
+  description?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  vehicleType?: string;
+  timeSlot?: string;
+}
+
 export default function ClientDashboard() {
   const { user } = useUser();
   // const { getToken } = useAuth(); // 👈 Add this when implementing real API
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [ongoingAppointments, setOngoingAppointments] = useState<OngoingAppointment[]>([]);
   const [appointmentHistory, setAppointmentHistory] = useState<AppointmentHistory[]>([]);
+  
+  // 🆕 API loading states
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
   
   // 🆕 Rating modal state
   const [showRatingModal, setShowRatingModal] = useState(false);
@@ -87,11 +98,41 @@ export default function ClientDashboard() {
   const [expandedChats, setExpandedChats] = useState<Record<string, boolean>>({});
   const [appointmentMessages, setAppointmentMessages] = useState<Record<string, string>>({});
 
+  // 🆕 Refresh appointments function
+  const refreshAppointments = async () => {
+    const currentUserId = user?.id;
+    if (!currentUserId) return;
+
+    try {
+      setAppointmentsLoading(true);
+      setAppointmentsError(null);
+      
+      const appointmentsData = await getUserAppointments(currentUserId);
+      const mappedAppointments: OngoingAppointment[] = appointmentsData.map((apt: BackendAppointment) => ({
+        id: apt.appoinmentId || apt.id || '',
+        clientId: apt.customerId || currentUserId,
+        vehicleType: apt.vehicleType || 'Not specified',
+        serviceType: apt.description || 'Service',
+        date: apt.createdAt ? apt.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+        timeSlot: apt.timeSlot || 'TBD',
+        status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
+        employeeName: apt.employeeName || 'Unassigned',
+        completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined
+      }));
+      
+      setOngoingAppointments(mappedAppointments);
+    } catch (error) {
+      console.error('Error refreshing appointments:', error);
+      setAppointmentsError('Failed to refresh appointments.');
+    } finally {
+      setAppointmentsLoading(false);
+    }
+  };
+
   // USER-SPECIFIC DATA FILTERING:
   // This component now filters all data based on the current user's ID from Clerk
   // In a real application, you would replace the mock data with API calls like:
   // - GET /api/appointments?clientId=${user.id}
-  // - GET /api/notifications?clientId=${user.id}
   // - GET /api/chat-messages?clientId=${user.id}
   // - GET /api/appointment-history?clientId=${user.id}
 
@@ -101,107 +142,43 @@ export default function ClientDashboard() {
       // Get current user ID from Clerk
       const currentUserId = user?.id;
       
+      // DEBUG: Log user information
+      console.log('Current user from Clerk:', user);
+      console.log('User ID for API call:', currentUserId);
+      
       if (!currentUserId) return;
 
       try {
-        // 🔄 REPLACE MOCK DATA WITH THESE API CALLS:
+        // 🔄 REAL API IMPLEMENTATION:
+        setAppointmentsLoading(true);
+        setAppointmentsError(null);
 
-        // 1. GET /api/appointments?clientId=${user.id}
-        // Replace the mock appointments array with:
-        /*
-        const appointmentsResponse = await fetch(`/api/appointments?clientId=${currentUserId}`, {
-          headers: {
-            'Authorization': `Bearer ${await getToken()}`, // Clerk auth token
-            'Content-Type': 'application/json'
-          }
-        });
-        const appointmentsData = await appointmentsResponse.json();
-        setOngoingAppointments(appointmentsData.filter(app => app.status !== 'completed'));
-        */
+        // 1. GET appointments for current user from backend
+        const appointmentsData = await getUserAppointments(currentUserId);
+        
+        // DEBUG: Log the raw data from backend
+        console.log('Raw appointments data from backend:', appointmentsData);
+        console.log('Current user ID:', currentUserId);
+        
+        // Map backend data to frontend interface
+        const mappedAppointments: OngoingAppointment[] = appointmentsData.map((apt: BackendAppointment) => ({
+          id: apt.appoinmentId || apt.id,
+          clientId: apt.customerId || currentUserId,
+          vehicleType: apt.vehicleType || 'Not specified',
+          serviceType: apt.description || 'Service',
+          date: apt.createdAt ? apt.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          timeSlot: apt.timeSlot || 'TBD',
+          status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
+          employeeName: apt.employeeName || 'Unassigned',
+          completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined
+        }));
+        
+        // DEBUG: Log the mapped appointments
+        console.log('Mapped appointments for display:', mappedAppointments);
+        
+        setOngoingAppointments(mappedAppointments);
 
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockOngoingAppointments: OngoingAppointment[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Oil Change & Inspection',
-            date: '2025-11-03',
-            timeSlot: '10:00 AM',
-            status: 'in-progress',
-            employeeName: 'John Smith'
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            vehicleType: 'SUV',
-            serviceType: 'Brake Service',
-            date: '2025-11-05',
-            timeSlot: '2:00 PM',
-            status: 'assigned',
-            employeeName: 'Mike Johnson'
-          },
-          {
-            id: '3',
-            clientId: currentUserId,
-            vehicleType: 'Hatchback',
-            serviceType: 'Tire Replacement',
-            date: '2025-11-02',
-            timeSlot: '9:00 AM',
-            status: 'completed',
-            employeeName: 'Sarah Davis',
-            completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() // Completed 30 minutes ago (will move to history in 30 min)
-          }
-        ];
-        setOngoingAppointments(mockOngoingAppointments);
-
-        // 2. GET /api/notifications?clientId=${user.id}
-        // Replace the mock notifications array with:
-        /*
-        const notificationsResponse = await fetch(`/api/notifications?clientId=${currentUserId}`, {
-          headers: {
-            'Authorization': `Bearer ${await getToken()}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        const notificationsData = await notificationsResponse.json();
-        setNotifications(notificationsData);
-        */
-
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockNotifications: Notification[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            type: 'success',
-            title: 'Service Completed!',
-            message: 'Your oil change has been completed successfully. Vehicle is ready for pickup!',
-            time: '5 minutes ago',
-            read: false
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            type: 'success',
-            title: 'Service Update',
-            message: 'Your oil change is currently in progress',
-            time: '10 minutes ago',
-            read: true
-          },
-          {
-            id: '3',
-            clientId: currentUserId,
-            type: 'info',
-            title: 'Appointment Confirmed',
-            message: 'Your brake service is scheduled for Nov 5th',
-            time: '2 hours ago',
-            read: false
-          }
-          // Completion notification added
-        ];
-        setNotifications(mockNotifications);
-
-        // 3. GET /api/chat-messages?clientId=${user.id}
+        // 2. GET /api/chat-messages?clientId=${user.id}
         // Replace the mock chat messages array with:
         /*
         const chatResponse = await fetch(`/api/chat-messages?clientId=${currentUserId}`, {
@@ -285,7 +262,12 @@ export default function ClientDashboard() {
 
       } catch (error) {
         console.error('Error fetching user data:', error);
-        // Handle error appropriately (show error message, fallback data, etc.)
+        setAppointmentsError('Failed to load appointments. Please try again.');
+        // Fallback to empty arrays on error
+        setOngoingAppointments([]);
+        setAppointmentHistory([]);
+      } finally {
+        setAppointmentsLoading(false);
       }
     };
 
@@ -335,27 +317,6 @@ export default function ClientDashboard() {
 
     return () => clearInterval(interval);
   }, [ongoingAppointments]);
-
-  const markNotificationAsRead = (id: string) => {
-    setNotifications(notifications.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
-  };
-
-  // 🆕 Handle notification click - open rating for completed services
-  const handleNotificationClick = (notification: Notification) => {
-    markNotificationAsRead(notification.id);
-    
-    // If it's a completion notification, open rating modal
-    if (notification.title.includes('Service Completed')) {
-      const relatedAppointment = ongoingAppointments.find(app => 
-        app.serviceType.toLowerCase().includes('oil') // Match service type
-      ) || appointmentHistory[0]; // Fallback to recent history
-      
-      setRatingAppointment(relatedAppointment);
-      setShowRatingModal(true);
-    }
-  };
 
   // 🆕 Submit rating function
   const submitRating = async () => {
@@ -473,9 +434,7 @@ export default function ClientDashboard() {
           <div className="flex space-x-8 border-b">
             {[
               { id: 'overview', label: 'Overview', icon: <Car className="h-4 w-4" /> },
-              { id: 'appointments', label: 'Appointments', icon: <Calendar className="h-4 w-4" /> },
               { id: 'progress', label: 'Progress', icon: <Clock className="h-4 w-4" /> },
-              { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
               { id: 'history', label: 'History', icon: <History className="h-4 w-4" /> }
             ].map((tab) => (
               <button
@@ -499,10 +458,10 @@ export default function ClientDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="space-y-6">
             {/* Quick Stats */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Card 
                   className="cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => setActiveTab('progress')}
@@ -530,33 +489,48 @@ export default function ClientDashboard() {
                     <p className="text-xs text-muted-foreground">This year</p>
                   </CardContent>
                 </Card>
-                
-                <Card 
-                  className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => setActiveTab('notifications')}
-                >
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Notifications</CardTitle>
-                    <Bell className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {notifications.filter(n => !n.read).length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Unread messages</p>
-                  </CardContent>
-                </Card>
               </div>
 
               {/* Recent Activity */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Recent Activity</CardTitle>
-                  <CardDescription>Your latest service updates</CardDescription>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle>Recent Activity</CardTitle>
+                      <CardDescription>Your latest service updates</CardDescription>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={refreshAppointments}
+                      disabled={appointmentsLoading}
+                      className="h-8 w-8 p-0"
+                    >
+                      <div className={appointmentsLoading ? 'animate-spin' : ''}>
+                        🔄
+                      </div>
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {ongoingAppointments.length > 0 ? (
+                    {appointmentsLoading ? (
+                      <div className="text-center py-6">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="text-sm text-gray-500 mt-2">Loading appointments...</p>
+                      </div>
+                    ) : appointmentsError ? (
+                      <div className="text-center py-6">
+                        <AlertCircle className="h-8 w-8 text-red-300 mx-auto mb-2" />
+                        <p className="text-sm text-red-500">{appointmentsError}</p>
+                        <button 
+                          onClick={() => window.location.reload()} 
+                          className="text-xs text-blue-600 hover:underline mt-1"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    ) : ongoingAppointments.length > 0 ? (
                       ongoingAppointments.slice(0, 2).map((appointment) => (
                         <div key={appointment.id} className="flex items-center space-x-4">
                           <div className="flex-shrink-0">
@@ -586,37 +560,6 @@ export default function ClientDashboard() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Recent Notifications */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Notifications</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {notifications.slice(0, 3).map((notification) => (
-                      <div 
-                        key={notification.id}
-                        className={`p-3 rounded-lg border cursor-pointer hover:bg-gray-50 ${
-                          !notification.read ? 'bg-blue-50 border-blue-200' : 'bg-gray-50'
-                        }`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-start space-x-2">
-                          <Bell className="h-4 w-4 mt-0.5 text-gray-400" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{notification.title}</p>
-                            <p className="text-xs text-gray-500">{notification.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </div>
         )}
 
@@ -625,10 +568,44 @@ export default function ClientDashboard() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Your Appointments</h2>
+              <Button 
+                variant="outline" 
+                onClick={refreshAppointments}
+                disabled={appointmentsLoading}
+                className="flex items-center gap-2"
+              >
+                <div className={appointmentsLoading ? 'animate-spin' : ''}>
+                  🔄
+                </div>
+                Refresh
+              </Button>
             </div>
             
-            <div className="grid gap-6">
-              {ongoingAppointments.map((appointment) => (
+            {appointmentsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p className="text-gray-500 mt-4">Loading your appointments...</p>
+              </div>
+            ) : appointmentsError ? (
+              <div className="text-center py-12">
+                <AlertCircle className="h-12 w-12 text-red-300 mx-auto mb-4" />
+                <p className="text-red-500 mb-2">{appointmentsError}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="text-blue-600 hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : ongoingAppointments.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No appointments found</p>
+                <p className="text-sm text-gray-400">Your appointments will appear here</p>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {ongoingAppointments.map((appointment) => (
                 <Card key={appointment.id}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -656,8 +633,9 @@ export default function ClientDashboard() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -757,51 +735,6 @@ export default function ClientDashboard() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-
-        {/* Notifications Tab */}
-        {activeTab === 'notifications' && (
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Notifications</h2>
-            </div>
-            
-            <div className="space-y-4">
-              {notifications.map((notification) => (
-                <Card 
-                  key={notification.id}
-                  className={`cursor-pointer hover:shadow-md transition-shadow ${
-                    !notification.read ? 'ring-2 ring-blue-100' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <div className={`p-2 rounded-full ${
-                        notification.type === 'success' ? 'bg-green-100' :
-                        notification.type === 'warning' ? 'bg-yellow-100' : 'bg-blue-100'
-                      }`}>
-                        <Bell className={`h-4 w-4 ${
-                          notification.type === 'success' ? 'text-green-600' :
-                          notification.type === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-                        }`} />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-semibold">{notification.title}</h4>
-                          <span className="text-sm text-gray-500">{notification.time}</span>
-                        </div>
-                        <p className="text-gray-600 mt-1">{notification.message}</p>
-                      </div>
-                      {!notification.read && (
-                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           </div>
         )}
 
