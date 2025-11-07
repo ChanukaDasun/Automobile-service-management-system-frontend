@@ -88,12 +88,17 @@ export default function Appointment() {
       setLoading(true);
       setError("");
 
-      // UPDATED: Match backend API requirements with appointmentDate field
+      // UPDATED: Match backend API requirements with appointmentDate and service type fields
+      const selectedServiceType = appointmentTypes.find(at => at.id === appointmentType);
+      const selectedVehicleType = vehicleTypes.find(vt => vt.id === vehicleType);
+      
       const appointmentData = {
         clientId: user.id,
         clientName: user.fullName || user.firstName || "Unknown Client",
-        description: `${appointmentTypes.find(at => at.id === appointmentType)?.name || "Service"} - ${vehicleTypes.find(vt => vt.id === vehicleType)?.name || "Vehicle"}`,
+        description: `${selectedServiceType?.name || "Service"} - ${selectedVehicleType?.name || "Vehicle"}`,
         appointmentDate: selectedDate,  // ADDED: Required for daily limit validation
+        serviceTypeId: appointmentType,  // ADDED: Service type ID (e.g., "basic", "standard", "premium")
+        serviceTypeName: selectedServiceType?.name || "",  // ADDED: Service type name
         employeeId: "",  // Backend will auto-assign
         employeeName: "",  // Backend will auto-assign
       };
