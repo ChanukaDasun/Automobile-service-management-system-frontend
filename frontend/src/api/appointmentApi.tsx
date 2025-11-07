@@ -47,18 +47,6 @@ export const getAppointments = async () => {
   }
 };
 
-// Get all appointments for admin dashboard
-export const getAllAppointments = async () => {
-  try {
-    const response = await axios.get(`${API_URL}/debug/all`);
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching all appointments:", error);
-    throw error;
-  }
-};
-
-// Get appointments for a specific client
 export const getUserAppointments = async (clientId: string) => {
   try {
     const response = await axios.get(`${API_URL}/client/${clientId}`);
