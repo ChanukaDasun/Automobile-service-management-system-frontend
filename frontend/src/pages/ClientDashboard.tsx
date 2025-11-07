@@ -32,6 +32,7 @@ interface OngoingAppointment {
   status: 'assigned' | 'in-progress' | 'completed';
   employeeName: string;
   completedAt?: string; // Timestamp when service was completed
+  createdAt?: string; // Timestamp when appointment was created
 }
 
 
@@ -117,7 +118,8 @@ export default function ClientDashboard() {
         timeSlot: apt.timeSlot || 'TBD',
         status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
         employeeName: apt.employeeName || 'Unassigned',
-        completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined
+        completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined,
+        createdAt: apt.createdAt
       }));
       
       setOngoingAppointments(mappedAppointments);
@@ -170,7 +172,8 @@ export default function ClientDashboard() {
           timeSlot: apt.timeSlot || 'TBD',
           status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
           employeeName: apt.employeeName || 'Unassigned',
-          completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined
+          completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined,
+          createdAt: apt.createdAt
         }));
         
         // DEBUG: Log the mapped appointments
@@ -531,7 +534,15 @@ export default function ClientDashboard() {
                         </button>
                       </div>
                     ) : ongoingAppointments.length > 0 ? (
-                      ongoingAppointments.slice(0, 2).map((appointment) => (
+                      ongoingAppointments
+                        .sort((a, b) => {
+                          // Sort by created time (newest first)
+                          const timeA = new Date(a.createdAt || a.date || '').getTime();
+                          const timeB = new Date(b.createdAt || b.date || '').getTime();
+                          return timeB - timeA; // Descending order (newest first)
+                        })
+                        .slice(0, 3)
+                        .map((appointment) => (
                         <div key={appointment.id} className="flex items-center space-x-4">
                           <div className="flex-shrink-0">
                             {getStatusIcon(appointment.status)}
