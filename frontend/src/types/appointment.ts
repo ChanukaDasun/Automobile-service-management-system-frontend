@@ -14,11 +14,29 @@ export interface Appointment {
   createdAt: string;
 }
 
+// Backend appointment data structure
+export interface BackendAppointment {
+  appoinmentId?: string;
+  id?: string;
+  customerId: string;
+  clientId?: string;
+  clientName: string;
+  vehicleType: string;
+  appointmentDate?: string;
+  timeSlot?: string;
+  status: 'PENDING' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+  employeeId?: string;
+  employeeName?: string;
+  description: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface Employee {
-  id: string;
+  employeeId: string;
   name: string;
   email: string;
-  availability: boolean;
+  availability?: boolean;
   assignedAppointments?: number;
 }
 

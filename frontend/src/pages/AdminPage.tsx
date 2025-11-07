@@ -5,9 +5,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import type { Appointment, Employee } from '@/types/appointment';
-import { Calendar, Users, Clock, CheckCircle2, AlertCircle, UserCheck, Settings } from 'lucide-react';
+import type { Appointment, Employee, BackendAppointment } from '@/types/appointment';
+import { Calendar, Users, Clock, CheckCircle2, AlertCircle, UserCheck, Settings, RefreshCw } from 'lucide-react';
 import DailyLimitsManager from '@/components/DailyLimitsManager';
+import { getAllAppointments, getAllEmployees } from '@/api/appointmentApi';
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -27,6 +28,7 @@ export default function AdminPage() {
   useEffect(() => {
     setSelectedDate(getTodayDate());
     fetchEmployees();
+    fetchAppointments(); // Load all appointments initially
   }, []);
 
   useEffect(() => {
@@ -35,66 +37,39 @@ export default function AdminPage() {
     }
   }, [selectedDate]);
 
-  const fetchAppointments = async (date: string) => {
+  const fetchAppointments = async (date?: string) => {
     try {
       setLoading(true);
       
-      // Mock data - replace with actual API call
-      const mockAppointments: Appointment[] = [
-        {
-          id: '1',
-          clientId: 'user_123',
-          clientName: 'John Doe',
-          vehicleType: 'Sedan',
-          appointmentDate: date,
-          timeSlot: '09:00 AM',
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          clientId: 'user_456',
-          clientName: 'Jane Smith',
-          vehicleType: 'SUV',
-          appointmentDate: date,
-          timeSlot: '10:00 AM',
-          status: 'assigned',
-          assignedEmployeeId: 'emp_1',
-          assignedEmployeeName: 'Mike Johnson',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          clientId: 'user_789',
-          clientName: 'Bob Wilson',
-          vehicleType: 'Truck',
-          appointmentDate: date,
-          timeSlot: '11:00 AM',
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '4',
-          clientId: 'user_321',
-          clientName: 'Alice Brown',
-          vehicleType: 'Motorcycle',
-          appointmentDate: date,
-          timeSlot: '02:00 PM',
-          status: 'in-progress',
-          assignedEmployeeId: 'emp_2',
-          assignedEmployeeName: 'Sarah Davis',
-          createdAt: new Date().toISOString(),
-        },
-      ];
+      // Get all appointments from backend
+      const appointmentsData = await getAllAppointments();
+      
+      // Map backend data to frontend format
+      const mappedAppointments: Appointment[] = appointmentsData.map((apt: BackendAppointment) => ({
+        id: apt.appoinmentId || apt.id || '',
+        clientId: apt.customerId || '',
+        clientName: apt.clientName || 'Unknown Client',
+        vehicleType: apt.vehicleType || 'Not specified',
+        appointmentDate: apt.appointmentDate || (apt.createdAt ? apt.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+        timeSlot: apt.timeSlot || 'TBD',
+        status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
+        assignedEmployeeId: apt.employeeId,
+        assignedEmployeeName: apt.employeeName || 'Unassigned',
+        createdAt: apt.createdAt || new Date().toISOString(),
+        description: apt.description || 'Service'
+      }));
 
-      setAppointments(mockAppointments);
+      // Filter by date if provided
+      const filteredAppointments = date ? 
+        mappedAppointments.filter(apt => apt.appointmentDate === date) : 
+        mappedAppointments;
 
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/admin/appointments?date=${date}`);
-      // const data = await response.json();
-      // setAppointments(data);
+      setAppointments(filteredAppointments);
+      
+      console.log('Fetched appointments for admin:', filteredAppointments);
     } catch (error) {
       console.error('Error fetching appointments:', error);
+      // Keep existing appointments on error to prevent empty state
     } finally {
       setLoading(false);
     }
@@ -102,22 +77,24 @@ export default function AdminPage() {
 
   const fetchEmployees = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockEmployees: Employee[] = [
-        { id: 'emp_1', name: 'Mike Johnson', email: 'mike@example.com', availability: true, assignedAppointments: 2 },
-        { id: 'emp_2', name: 'Sarah Davis', email: 'sarah@example.com', availability: true, assignedAppointments: 1 },
-        { id: 'emp_3', name: 'Tom Wilson', email: 'tom@example.com', availability: true, assignedAppointments: 0 },
-        { id: 'emp_4', name: 'Emma Taylor', email: 'emma@example.com', availability: false, assignedAppointments: 3 },
-      ];
+      // Fetch real employees from the database
+      const employeesData = await getAllEmployees();
+      
+      // Map backend employee data to frontend format with default availability
+      const mappedEmployees: Employee[] = employeesData.map(emp => ({
+        employeeId: emp.employeeId,
+        name: emp.name,
+        email: emp.email,
+        availability: true, // Default to available (will be enhanced later with real availability logic)
+        assignedAppointments: 0 // Default to 0 (will be calculated based on actual appointments)
+      }));
 
-      setEmployees(mockEmployees);
-
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/admin/employees');
-      // const data = await response.json();
-      // setEmployees(data);
+      setEmployees(mappedEmployees);
+      console.log('Fetched employees from database:', mappedEmployees);
     } catch (error) {
       console.error('Error fetching employees:', error);
+      // Keep empty employees array on error instead of showing mock data
+      setEmployees([]);
     }
   };
 
@@ -126,7 +103,7 @@ export default function AdminPage() {
       setAssigningId(appointmentId);
 
       // TODO: Replace with actual API call
-      const employee = employees.find(e => e.id === employeeId);
+      const employee = employees.find(e => e.employeeId === employeeId);
       
       console.log('Assigning employee:', { appointmentId, employeeId });
 
@@ -192,8 +169,8 @@ export default function AdminPage() {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Appointment Management</h1>
-            <p className="text-slate-600">View and assign appointments to available employees</p>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Admin Dashboard - All Client Appointments</h1>
+            <p className="text-slate-600">View and manage all appointments booked by clients across the system</p>
           </div>
           <Button
             onClick={() => setShowDailyLimits(!showDailyLimits)}
@@ -260,10 +237,10 @@ export default function AdminPage() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Filters and Controls */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="date-filter">Filter by Date</Label>
                 <Input
@@ -288,6 +265,32 @@ export default function AdminPage() {
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Quick Actions</Label>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setSelectedDate('');
+                      fetchAppointments();
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    View All
+                  </Button>
+                  <Button
+                    onClick={() => fetchAppointments(selectedDate || undefined)}
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    className="flex items-center gap-1"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? 'Loading...' : 'Refresh'}
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -366,7 +369,7 @@ export default function AdminPage() {
                                 {employees
                                   .filter(emp => emp.availability)
                                   .map((employee) => (
-                                    <SelectItem key={employee.id} value={employee.id}>
+                                    <SelectItem key={employee.employeeId} value={employee.employeeId}>
                                       <div className="flex flex-col">
                                         <span className="font-medium">{employee.name}</span>
                                         <span className="text-xs text-slate-500">
@@ -415,7 +418,7 @@ export default function AdminPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {employees.map((employee) => (
                 <div
-                  key={employee.id}
+                  key={employee.employeeId}
                   className={`p-4 border rounded-lg ${
                     employee.availability ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                   }`}

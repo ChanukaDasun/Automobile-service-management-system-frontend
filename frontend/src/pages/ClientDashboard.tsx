@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useUser } from "@clerk/clerk-react";
 // import { useAuth } from "@clerk/clerk-react"; // 👈 Add this when implementing real API
 import { useNavigate } from "react-router-dom";
+import { getUserAppointments } from "@/api/appointmentApi";
+import type { BackendAppointment } from "@/types/appointment";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +33,7 @@ interface OngoingAppointment {
   status: 'assigned' | 'in-progress' | 'completed';
   employeeName: string;
   completedAt?: string; // Timestamp when service was completed
+  createdAt?: string; // Timestamp when appointment was created
 }
 
 
@@ -108,41 +111,25 @@ export default function ClientDashboard() {
         setOngoingAppointments(appointmentsData.filter(app => app.status !== 'completed'));
         */
 
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockOngoingAppointments: OngoingAppointment[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Oil Change & Inspection',
-            date: '2025-11-03',
-            timeSlot: '10:00 AM',
-            status: 'in-progress',
-            employeeName: 'John Smith'
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            vehicleType: 'SUV',
-            serviceType: 'Brake Service',
-            date: '2025-11-05',
-            timeSlot: '2:00 PM',
-            status: 'assigned',
-            employeeName: 'Mike Johnson'
-          },
-          {
-            id: '3',
-            clientId: currentUserId,
-            vehicleType: 'Hatchback',
-            serviceType: 'Tire Replacement',
-            date: '2025-11-02',
-            timeSlot: '9:00 AM',
-            status: 'completed',
-            employeeName: 'Sarah Davis',
-            completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString() // Completed 30 minutes ago (will move to history in 30 min)
-          }
-        ];
-        setOngoingAppointments(mockOngoingAppointments);
+        // Get real appointments for current user
+        const appointmentsData = await getUserAppointments(currentUserId);
+        
+        // Map backend data to frontend format
+        const mappedAppointments: OngoingAppointment[] = appointmentsData.map((apt: BackendAppointment) => ({
+          id: apt.appoinmentId || apt.id || '',
+          clientId: apt.customerId || currentUserId,
+          vehicleType: apt.vehicleType || 'Not specified',
+          serviceType: apt.description || 'Service',
+          date: apt.createdAt ? apt.createdAt.split('T')[0] : new Date().toISOString().split('T')[0],
+          timeSlot: apt.timeSlot || 'TBD',
+          status: apt.status?.toLowerCase().replace('_', '-') || 'pending',
+          employeeName: apt.employeeName || 'Unassigned',
+          completedAt: apt.status === 'COMPLETED' ? apt.updatedAt : undefined,
+          createdAt: apt.createdAt
+        }));
+
+        console.log('Fetched real appointments for user:', mappedAppointments);
+        setOngoingAppointments(mappedAppointments);
 
         // 2. GET /api/chat-messages?clientId=${user.id}
         // Replace the mock chat messages array with:
@@ -157,34 +144,8 @@ export default function ClientDashboard() {
         setChatMessages(chatData);
         */
 
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockChatMessages: ChatMessage[] = [
-          {
-            id: '1',
-            appointmentId: '1',
-            sender: 'employee',
-            senderName: 'John Smith',
-            message: 'Hi! I\'m starting work on your vehicle now. The oil change should take about 30 minutes.',
-            timestamp: '10:15 AM'
-          },
-          {
-            id: '2',
-            appointmentId: '1',
-            sender: 'client',
-            senderName: user?.firstName || 'You',
-            message: 'Great! Thanks for the update. Is everything looking good so far?',
-            timestamp: '10:20 AM'
-          },
-          {
-            id: '3',
-            appointmentId: '1',
-            sender: 'employee',
-            senderName: 'John Smith',
-            message: 'Yes, everything looks good. I also noticed your air filter needs replacement. Would you like me to replace it?',
-            timestamp: '10:45 AM'
-          }
-        ];
-        setChatMessages(mockChatMessages);
+        // Chat messages will be implemented later
+        setChatMessages([]);
 
         // 4. GET /api/appointment-history?clientId=${user.id}
         // Replace the mock appointment history array with:
@@ -199,32 +160,22 @@ export default function ClientDashboard() {
         setAppointmentHistory(historyData);
         */
 
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockAppointmentHistory: AppointmentHistory[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Regular Maintenance',
-            date: '2025-10-15',
-            status: 'completed',
-            rating: 5,
-            employeeName: 'Sarah Wilson',
-            cost: 15000
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Tire Rotation',
-            date: '2025-09-20',
-            status: 'completed',
-            rating: 4,
-            employeeName: 'Mike Johnson',
-            cost: 8000
-          }
-        ];
-        setAppointmentHistory(mockAppointmentHistory);
+        // Filter completed appointments for history
+        const completedAppointments: AppointmentHistory[] = mappedAppointments
+          .filter(apt => apt.status === 'completed')
+          .map(apt => ({
+            id: apt.id,
+            clientId: apt.clientId,
+            vehicleType: apt.vehicleType,
+            serviceType: apt.serviceType,
+            date: apt.date,
+            status: 'completed' as const,
+            rating: 5, // Default rating - can be enhanced later
+            employeeName: apt.employeeName,
+            cost: 0 // Default cost - can be enhanced later
+          }));
+        
+        setAppointmentHistory(completedAppointments);
 
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -461,7 +412,13 @@ export default function ClientDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     {ongoingAppointments.length > 0 ? (
-                      ongoingAppointments.slice(0, 2).map((appointment) => (
+                      ongoingAppointments
+                        .sort((a, b) => {
+                          if (!a.createdAt || !b.createdAt) return 0;
+                          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                        })
+                        .slice(0, 3)
+                        .map((appointment) => (
                         <div key={appointment.id} className="flex items-center space-x-4">
                           <div className="flex-shrink-0">
                             {getStatusIcon(appointment.status)}
@@ -539,7 +496,9 @@ export default function ClientDashboard() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Service Progress</h2>
             
-            {ongoingAppointments.map((appointment) => (
+            {ongoingAppointments
+              .filter(appointment => ['pending', 'assigned', 'in-progress'].includes(appointment.status))
+              .map((appointment) => (
               <Card key={appointment.id}>
                 <CardContent className="p-6">
                   <div className="space-y-4">
