@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,76 +18,55 @@ export default function EmployeeTasks() {
     try {
       setLoading(true);
 
-      // Mock data - replace with actual API call
-      const mockTasks: Appointment[] = [
-        {
-          id: '1',
-          clientId: 'user_123',
-          clientName: 'John Doe',
-          vehicleType: 'Sedan',
-          appointmentDate: new Date().toISOString().split('T')[0],
-          timeSlot: '09:00 AM',
-          status: 'assigned',
-          assignedEmployeeId: user?.id,
-          assignedEmployeeName: `${user?.firstName} ${user?.lastName}`,
-          description: 'Oil change and tire rotation',
-          estimatedCompletion: undefined, // No estimate set yet
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          clientId: 'user_456',
-          clientName: 'Jane Smith',
-          vehicleType: 'SUV',
-          appointmentDate: new Date().toISOString().split('T')[0],
-          timeSlot: '11:00 AM',
-          status: 'in-progress',
-          assignedEmployeeId: user?.id,
-          assignedEmployeeName: `${user?.firstName} ${user?.lastName}`,
-          description: 'Full service inspection',
-          estimatedCompletion: '13:30', // Employee has set estimate
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          clientId: 'user_789',
-          clientName: 'Bob Wilson',
-          vehicleType: 'Truck',
-          appointmentDate: new Date(Date.now() - 86400000).toISOString().split('T')[0],
-          timeSlot: '02:00 PM',
-          status: 'in-progress',
-          assignedEmployeeId: user?.id,
-          assignedEmployeeName: `${user?.firstName} ${user?.lastName}`,
-          description: 'Brake service',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '4',
-          clientId: 'user_321',
-          clientName: 'Alice Brown',
-          vehicleType: 'Motorcycle',
-          appointmentDate: new Date(Date.now() - 172800000).toISOString().split('T')[0],
-          timeSlot: '10:00 AM',
-          status: 'completed',
-          assignedEmployeeId: user?.id,
-          assignedEmployeeName: `${user?.firstName} ${user?.lastName}`,
-          description: 'Chain adjustment and oil change',
-          createdAt: new Date().toISOString(),
-        },
-      ];
+      // Get employee ID from authenticated user
+      const employeeId = user?.id;
+      if (!employeeId) {
+        throw new Error('No employee ID available - user not authenticated');
+      }
+      
+      console.log('Using employee ID:', employeeId);
 
-      setTasks(mockTasks);
-
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/employee/tasks?employeeId=${user?.id}`);
-      // const data = await response.json();
-      // setTasks(data);
+      console.log('Fetching tasks for employee ID:', employeeId);
+      // Fetch tasks from real backend API
+      const response = await fetch(`http://localhost:9000/api/employee/tasks?employeeId=${employeeId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Tasks API error:', response.status, errorText);
+        throw new Error(`Failed to fetch tasks: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Received tasks data:', data);
+      
+      // Map backend data to frontend format
+      const mappedTasks: Appointment[] = data.map((task: any) => ({
+        id: task.id,
+        clientId: task.clientId,
+        clientName: task.clientName,
+        vehicleType: task.vehicleType || 'Unknown Vehicle',
+        appointmentDate: task.appointmentDate,
+        timeSlot: task.timeSlot || 'Time not set',
+        status: task.status.toLowerCase().replace('_', '-') as Appointment['status'],
+        assignedEmployeeId: task.employeeId,
+        assignedEmployeeName: task.employeeName,
+        description: task.description,
+        estimatedCompletion: task.estimatedCompletion,
+        createdAt: task.createdAt,
+      }));
+      
+      setTasks(mappedTasks);
     } catch (error) {
       console.error('Error fetching tasks:', error);
+      console.error('User ID:', user?.id);
+      
+      // More detailed error message
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to load tasks: ${errorMsg}\n\nUser ID: ${user?.id}\n\nPlease check the console for more details.`);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.firstName, user?.lastName]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchTasks();
@@ -97,39 +76,61 @@ export default function EmployeeTasks() {
     try {
       setUpdatingId(taskId);
 
-      console.log('Updating task status:', { taskId, newStatus });
+      // Get employee ID from authenticated user
+      const employeeId = user?.id;
+      if (!employeeId) {
+        throw new Error('No employee ID available - user not authenticated');
+      }
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Update local state
+
+      // Convert frontend status to backend format
+      const backendStatus = newStatus.toUpperCase().replace('-', '_');
+      
+      // Make real API call to update status
+      const response = await fetch(`http://localhost:9000/api/employee/tasks/${taskId}/status?employeeId=${employeeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: backendStatus,
+          statusMessage: `Task ${newStatus} by employee`
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to update status: ${response.status}`);
+      }
+      
+      const updated = await response.json();
+      
+      // Update local state with response from backend
       setTasks(prevTasks =>
         prevTasks.map(task =>
-          task.id === taskId ? { ...task, status: newStatus } : task
+          task.id === taskId ? {
+            ...task,
+            status: updated.status.toLowerCase().replace('_', '-') as Appointment['status'],
+            updatedAt: updated.updatedAt
+          } : task
         )
       );
-
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/employee/tasks/${taskId}/status`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ status: newStatus }),
-      // });
-      // if (response.ok) {
-      //   const updated = await response.json();
-      //   setTasks(prev => prev.map(task => task.id === taskId ? updated : task));
-      // }
     } catch (error) {
       console.error('Error updating task status:', error);
+      alert('Failed to update task status. Please try again.');
     } finally {
       setUpdatingId(null);
     }
   };
 
-  // 🆕 Function to handle setting estimated completion time
+  // Function to handle setting estimated completion time
   const handleSetEstimatedCompletion = async (taskId: string, estimatedTime: string) => {
     try {
       setUpdatingId(taskId);
+
+      // Get employee ID from authenticated user
+      const employeeId = user?.id;
+      if (!employeeId) {
+        throw new Error('No employee ID available - user not authenticated');
+      }
 
       // Validate time format (simple validation)
       if (!estimatedTime || !estimatedTime.match(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/)) {
@@ -137,34 +138,34 @@ export default function EmployeeTasks() {
         return;
       }
 
-      console.log('Setting estimated completion:', { taskId, estimatedTime });
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Update local state
+      // Make real API call to set estimated completion
+      const response = await fetch(`http://localhost:9000/api/employee/tasks/${taskId}/estimated-completion?employeeId=${employeeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estimatedCompletion: estimatedTime }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to set estimated completion: ${response.status}`);
+      }
+      
+      const updated = await response.json();
+
+      // Update local state with response from backend
       setTasks(prevTasks =>
         prevTasks.map(task =>
-          task.id === taskId ? { ...task, estimatedCompletion: estimatedTime } : task
+          task.id === taskId ? { ...task, estimatedCompletion: updated.estimatedCompletion, updatedAt: updated.updatedAt } : task
         )
       );
 
       // Clear editing state
       setEditingEstimateId(null);
       setEstimateInput('');
-
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/employee/tasks/${taskId}/estimated-completion`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ estimatedCompletion: estimatedTime }),
-      // });
-      // if (response.ok) {
-      //   const updated = await response.json();
-      //   setTasks(prev => prev.map(task => task.id === taskId ? updated : task));
-      // }
     } catch (error) {
       console.error('Error setting estimated completion:', error);
+      alert('Failed to set estimated completion time. Please try again.');
     } finally {
       setUpdatingId(null);
     }
@@ -176,11 +177,135 @@ export default function EmployeeTasks() {
     setEstimateInput(currentEstimate || '');
   };
 
-  // 🆕 Function to cancel editing
+  // Function to cancel editing
   const cancelEditingEstimate = () => {
     setEditingEstimateId(null);
     setEstimateInput('');
   };
+
+  // Add state for statistics
+  const [statistics, setStatistics] = useState<{
+    totalTasks: number;
+    assignedTasks: number;
+    inProgressTasks: number;
+    completedTasks: number;
+    todayTasks: number;
+    pastTasks: number;
+  } | null>(null);
+
+  // Function to fetch statistics from backend
+  const fetchStatistics = useCallback(async () => {
+    try {
+      // Get employee ID from authenticated user
+      const employeeId = user?.id;
+      if (!employeeId) {
+        throw new Error('No employee ID available - user not authenticated');
+      }
+      
+      console.log('Fetching statistics for employee ID:', employeeId);
+
+      console.log('Fetching statistics for employeeId:', employeeId);
+      const response = await fetch(`http://localhost:9000/api/employee/tasks/statistics?employeeId=${employeeId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Statistics API error:', response.status, errorText);
+        throw new Error(`Failed to fetch statistics: ${response.status} - ${errorText}`);
+      }
+      
+      const stats = await response.json();
+      console.log('Statistics fetched successfully:', stats);
+      setStatistics(stats);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      // Set empty statistics as fallback
+      setStatistics({
+        totalTasks: 0,
+        assignedTasks: 0,
+        inProgressTasks: 0,
+        completedTasks: 0,
+        todayTasks: 0,
+        pastTasks: 0
+      });
+    }
+  }, [user?.id]);
+
+  // Fetch statistics when component mounts
+  useEffect(() => {
+    fetchStatistics();
+  }, [fetchStatistics]);
+
+  // Function to fetch today's tasks specifically
+  const fetchTodayTasks = useCallback(async () => {
+    try {
+      const employeeId = user?.id;
+      if (!employeeId) {
+        throw new Error('No employee ID available - user not authenticated');
+      }
+
+      const response = await fetch(`http://localhost:9000/api/employee/tasks/today?employeeId=${employeeId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch today's tasks: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      return data.map((task: any) => ({
+        id: task.id,
+        clientId: task.clientId,
+        clientName: task.clientName,
+        vehicleType: task.vehicleType || 'Unknown Vehicle',
+        appointmentDate: task.appointmentDate,
+        timeSlot: task.timeSlot || 'Time not set',
+        status: task.status.toLowerCase().replace('_', '-') as Appointment['status'],
+        assignedEmployeeId: task.employeeId,
+        assignedEmployeeName: task.employeeName,
+        description: task.description,
+        estimatedCompletion: task.estimatedCompletion,
+        createdAt: task.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error fetching today\'s tasks:', error);
+      return [];
+    }
+  }, [user?.id]);
+
+  // Function to fetch past tasks specifically
+  const fetchPastTasks = useCallback(async () => {
+    try {
+      const employeeId = user?.id;
+      if (!employeeId) {
+        throw new Error('No employee ID available - user not authenticated');
+      }
+
+      const response = await fetch(`http://localhost:9000/api/employee/tasks/past?employeeId=${employeeId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch past tasks: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      return data.map((task: any) => ({
+        id: task.id,
+        clientId: task.clientId,
+        clientName: task.clientName,
+        vehicleType: task.vehicleType || 'Unknown Vehicle',
+        appointmentDate: task.appointmentDate,
+        timeSlot: task.timeSlot || 'Time not set',
+        status: task.status.toLowerCase().replace('_', '-') as Appointment['status'],
+        assignedEmployeeId: task.employeeId,
+        assignedEmployeeName: task.employeeName,
+        description: task.description,
+        estimatedCompletion: task.estimatedCompletion,
+        createdAt: task.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error fetching past tasks:', error);
+      return [];
+    }
+  }, [user?.id]);
 
   const getStatusBadge = (status: Appointment['status']) => {
     const badges = {
@@ -193,24 +318,47 @@ export default function EmployeeTasks() {
     return badges[status];
   };
 
-  const stats = {
+  // Use backend statistics if available, otherwise fall back to calculated stats
+  const stats = statistics ? {
+    total: statistics.totalTasks,
+    assigned: statistics.assignedTasks,
+    inProgress: statistics.inProgressTasks,
+    completed: statistics.completedTasks,
+  } : {
     total: tasks.length,
     assigned: tasks.filter(t => t.status === 'assigned').length,
     inProgress: tasks.filter(t => t.status === 'in-progress').length,
     completed: tasks.filter(t => t.status === 'completed').length,
   };
 
-  const todayTasks = tasks.filter(
-    t => t.appointmentDate === new Date().toISOString().split('T')[0]
-  );
+  // Use dedicated API calls for different task types
+  const [todayTasks, setTodayTasks] = useState<Appointment[]>([]);
+  const [pastTasksList, setPastTasksList] = useState<Appointment[]>([]);
+
+  // Load today's and past tasks when component mounts
+  useEffect(() => {
+    const loadTodayTasks = async () => {
+      const today = await fetchTodayTasks();
+      setTodayTasks(today);
+    };
+    
+    const loadPastTasks = async () => {
+      const past = await fetchPastTasks();
+      setPastTasksList(past);
+    };
+
+    // Only load tasks if user is authenticated
+    if (user?.id) {
+      loadTodayTasks();
+      loadPastTasks();
+    }
+  }, [fetchTodayTasks, fetchPastTasks, user?.id]);
 
   const upcomingTasks = tasks.filter(
     t => new Date(t.appointmentDate) > new Date() && t.status !== 'completed' && t.status !== 'cancelled'
   );
 
-  const pastTasks = tasks.filter(
-    t => new Date(t.appointmentDate) < new Date() || t.status === 'completed'
-  );
+  const pastTasks = pastTasksList;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 p-6">
