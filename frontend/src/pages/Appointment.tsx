@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { DailyAvailability, VehicleType } from '@/types/appointment';
-import { Calendar, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, AlertCircle, CheckCircle2, Activity, ArrowRight } from 'lucide-react';
 
 export default function Appointment() {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [vehicleType, setVehicleType] = useState<string>('');
   const [availability, setAvailability] = useState<DailyAvailability | null>(null);
@@ -374,12 +376,18 @@ export default function Appointment() {
                   <p className="text-sm text-slate-600">Service completed within scheduled time</p>
                 </div>
               </div>
-              <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <AlertCircle className="h-5 w-5 text-blue-600" />
+              <div 
+                className="flex items-start gap-3 cursor-pointer group hover:scale-105 transition-transform"
+                onClick={() => navigate('/track-progress')}
+              >
+                <div className="p-2 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
+                  <Activity className="h-5 w-5 text-green-600" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-1">Real-time Updates</h4>
+                  <h4 className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+                    Real-time Updates
+                    <ArrowRight className="h-4 w-4 text-green-600 group-hover:translate-x-1 transition-transform" />
+                  </h4>
                   <p className="text-sm text-slate-600">Track your service progress live</p>
                 </div>
               </div>

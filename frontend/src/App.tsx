@@ -7,6 +7,7 @@ import EmployeePage from "./pages/EmployeePage";
 import EmployeeTasks from "./pages/EmployeeTasks";
 import UserPage from "./pages/UserPage";
 import Appointment from "./pages/Appointment";
+import VehicleProgressTracking from "./pages/VehicleProgressTracking";
 import { Roles } from "./types/globals";
 import Login from "./pages/Login";
 
@@ -72,6 +73,14 @@ export default function App() {
                 element={
                   <RoleGuard role={Roles.User}>
                     <Appointment />
+                  </RoleGuard>
+                }
+              />
+              <Route
+                path="/track-progress"
+                element={
+                  <RoleGuard role={Roles.User}>
+                    <VehicleProgressTracking />
                   </RoleGuard>
                 }
               />
