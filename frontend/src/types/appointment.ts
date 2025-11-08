@@ -10,6 +10,7 @@ export interface Appointment {
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
   description?: string;
+  estimatedCompletion?: string; // Added for employee to set estimated completion time
   createdAt: string;
 }
 
