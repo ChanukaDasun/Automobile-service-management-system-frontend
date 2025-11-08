@@ -20,11 +20,11 @@ const appointment = {
   serviceTypeName: "Basic Service"
 }
 
-interface User {
-  nickname: string;
-  fullname: string;
-  status: "ONLINE" | "OFFLINE";
-}
+// interface User {
+//   nickname: string;
+//   fullname: string;
+//   status: "ONLINE" | "OFFLINE";
+// }
 
 interface ChatMessage {
   senderId: string;
@@ -133,18 +133,18 @@ function EmployeeChatWindow() {
     fetchMessages();
   };
 
-  const logout = () => {
-    if (stompClient) {
-      const fullname = appointment.EmployeeName;
-      stompClient.send(
-        "/app/user.disconnectUser",
-        {},
-        JSON.stringify({ userId, fullname, status: "OFFLINE" })
-      );
-      stompClient.disconnect();
-    }
-    setMessages([]);
-  };
+//   const logout = () => {
+//     if (stompClient) {
+//       const fullname = appointment.EmployeeName;
+//       stompClient.send(
+//         "/app/user.disconnectUser",
+//         {},
+//         JSON.stringify({ userId, fullname, status: "OFFLINE" })
+//       );
+//       stompClient.disconnect();
+//     }
+//     setMessages([]);
+//   };
 
   return (
     <div className="chat-container">
