@@ -12,6 +12,9 @@ import { Roles } from "./types/globals";
 import Login from "./pages/Login";
 import Navbar from "./components/Navbar";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import Test from "./pages/Test";
+import ChatWindow from "./pages/ChatWindow";
+import EmployeeChatWindow from "./pages/EmployeeChatWindow";
 
 export default function App() {
   const { user } = useUser();
@@ -29,7 +32,7 @@ export default function App() {
             <Route path="/login" element={<Navigate to="/" replace />} />
 
             {/* Protected routes - require authentication */}
-            {user ? (
+            {user !== null || user !== undefined ? (
               <>
                 <Route
                   path="/admin"
@@ -76,6 +79,38 @@ export default function App() {
                   element={
                     <RoleGuard role={Roles.User}>
                       <Notification />
+                    </RoleGuard>
+                  }
+                />
+                <Route
+                  path="/user/test"
+                  element={
+                    <RoleGuard role={Roles.User}>
+                      <Test />
+                    </RoleGuard>
+                  }
+                />
+                <Route
+                  path="/employee/test"
+                  element={
+                    <RoleGuard role={Roles.Employee}>
+                      <Test />
+                    </RoleGuard>
+                  }
+                />
+                <Route
+                  path="/user/chat"
+                  element={
+                    <RoleGuard role={Roles.User}>
+                      <ChatWindow />
+                    </RoleGuard>
+                  }
+                />
+                <Route
+                  path="/emp/chat"
+                  element={
+                    <RoleGuard role={Roles.Employee}>
+                      <EmployeeChatWindow />
                     </RoleGuard>
                   }
                 />
