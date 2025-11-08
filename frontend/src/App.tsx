@@ -12,6 +12,8 @@ import ChatWindow from "./pages/ChatWindow";
 import Test from "./pages/Test";
 import TaskPage from "./pages/user/TaskPage";
 import ViewTask from "./pages/user/ViewTask";
+import ClientAppointments from "./pages/user/ClientAppointment";
+import EmployeeAppointments from "./pages/user/EmployeeAppointment";
 
 export default function App() {
   const { user } = useUser();
@@ -55,6 +57,8 @@ export default function App() {
                 <Route index element={<EmployeePage />} />
                 <Route path="chat" element={<ChatWindow />} />
                 <Route path="test" element={<Test />} />
+                <Route path="appointment" element={<EmployeeAppointments />} />
+                
               </Route>
               
               <Route
@@ -66,6 +70,7 @@ export default function App() {
                 }
               >
                 <Route index element={<UserPage />} />
+                <Route path="appointment" element={<ClientAppointments />} />
                 <Route path="chat" element={<ChatWindow />} />
                 <Route path="test" element={<Test />} />
                 <Route path="tasks" element={<TaskPage />} />
