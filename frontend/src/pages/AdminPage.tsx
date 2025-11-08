@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Calendar, Users, Clock, CheckCircle2, AlertCircle, UserCheck, Settings, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, User, Check, X, AlertCircle, Settings, UserCheck, RefreshCw, Users } from 'lucide-react';
 import DailyLimitsManager from '@/components/DailyLimitsManager';
 import { 
   getAllAppointments, 
@@ -20,8 +20,17 @@ export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [appointments, setAppointments] = useState<AdminAppointmentDto[]>([]);
   const [employees, setEmployees] = useState<EmployeeDto[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  
+  // Confirmation state for assignment
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    appointmentId: string;
+    employeeId: string;
+    employeeName: string;
+    appointmentClient: string;
+  } | null>(null);
+
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showDailyLimits, setShowDailyLimits] = useState(false);
 
@@ -77,42 +86,76 @@ export default function AdminPage() {
   };
 
   const handleAssignEmployee = async (appointmentId: string, employeeId: string) => {
+    // Validate inputs
+    if (!appointmentId || appointmentId === 'unknown-id') {
+      console.error('Invalid appointment ID:', appointmentId);
+      alert('Cannot assign employee: Invalid appointment ID');
+      return;
+    }
+    
+    if (!employeeId) {
+      console.error('Invalid employee ID:', employeeId);
+      alert('Cannot assign employee: Invalid employee ID');
+      return;
+    }
+
+    // Find employee and appointment details for confirmation
+    const employee = employees.find(emp => emp.id === employeeId);
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    
+    if (!employee || !appointment) {
+      alert('Employee or appointment not found');
+      return;
+    }
+
+    // Set pending assignment for confirmation
+    setPendingAssignment({
+      appointmentId,
+      employeeId,
+      employeeName: getEmployeeName(employee),
+      appointmentClient: appointment.clientName
+    });
+  };
+
+  const confirmAssignment = async () => {
+    if (!pendingAssignment) return;
+
     try {
-      // Validate inputs before making API call
-      if (!appointmentId || appointmentId === 'unknown-id') {
-        console.error('Invalid appointment ID:', appointmentId);
-        alert('Cannot assign employee: Invalid appointment ID');
-        return;
-      }
+      setAssigningId(pendingAssignment.appointmentId);
       
-      if (!employeeId) {
-        console.error('Invalid employee ID:', employeeId);
-        alert('Cannot assign employee: Invalid employee ID');
-        return;
-      }
-      
-      setAssigningId(appointmentId);
-      
-      console.log(`Assigning employee ${employeeId} to appointment ${appointmentId}`);
+      console.log(`Confirming assignment of ${pendingAssignment.employeeName} to appointment ${pendingAssignment.appointmentId}`);
 
       // Use the real API call to assign employee to appointment
-      const updatedAppointment = await assignEmployeeToAppointment(appointmentId, employeeId);
+      const updatedAppointment = await assignEmployeeToAppointment(
+        pendingAssignment.appointmentId, 
+        pendingAssignment.employeeId
+      );
 
       // Update local state with the response from backend
       setAppointments(prevAppointments =>
         prevAppointments.map(apt =>
-          apt.id === appointmentId ? updatedAppointment : apt
+          apt.id === pendingAssignment.appointmentId ? updatedAppointment : apt
         )
       );
 
       console.log('Successfully assigned employee:', updatedAppointment);
+      
+      // Clear pending assignment
+      setPendingAssignment(null);
+      
+      // Show success message
+      alert(`✅ Successfully assigned ${pendingAssignment.employeeName} to ${pendingAssignment.appointmentClient}'s appointment`);
+      
     } catch (error) {
       console.error('Error assigning employee:', error);
-      // Show user-friendly error message
       alert(error instanceof Error ? error.message : 'Failed to assign employee');
     } finally {
       setAssigningId(null);
     }
+  };
+
+  const cancelAssignment = () => {
+    setPendingAssignment(null);
   };
 
   const getStatusBadge = (status: AdminAppointmentDto['status']) => {
@@ -351,7 +394,7 @@ export default function AdminPage() {
                       </div>
 
                       {/* Assignment Section */}
-                      <div className="flex items-center gap-2 min-w-[250px]">
+                      <div className="flex items-center gap-2 min-w-[300px]">
                         {appointment.status === 'PENDING' || appointment.status === 'ASSIGNED' ? (
                           <>
                             <Select
@@ -375,9 +418,31 @@ export default function AdminPage() {
                                   ))}
                               </SelectContent>
                             </Select>
-                            {assigningId === appointment.id && (
+                            
+                            {/* Direct Action Buttons */}
+                            {pendingAssignment?.appointmentId === appointment.id ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  onClick={confirmAssignment}
+                                  size="sm"
+                                  className="h-8 px-2 bg-green-600 hover:bg-green-700 text-white"
+                                  disabled={assigningId === appointment.id}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={cancelAssignment}
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-2 border-red-200 text-red-600 hover:bg-red-50"
+                                  disabled={assigningId === appointment.id}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : assigningId === appointment.id ? (
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                            )}
+                            ) : null}
                           </>
                         ) : (
                           <div className="flex items-center gap-2 text-sm">
@@ -388,6 +453,8 @@ export default function AdminPage() {
                           </div>
                         )}
                       </div>
+
+
                     </div>
                   </div>
                   );
