@@ -194,34 +194,8 @@ export default function ClientDashboard() {
         setChatMessages(chatData);
         */
 
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockChatMessages: ChatMessage[] = [
-          {
-            id: '1',
-            appointmentId: '1',
-            sender: 'employee',
-            senderName: 'John Smith',
-            message: 'Hi! I\'m starting work on your vehicle now. The oil change should take about 30 minutes.',
-            timestamp: '10:15 AM'
-          },
-          {
-            id: '2',
-            appointmentId: '1',
-            sender: 'client',
-            senderName: user?.firstName || 'You',
-            message: 'Great! Thanks for the update. Is everything looking good so far?',
-            timestamp: '10:20 AM'
-          },
-          {
-            id: '3',
-            appointmentId: '1',
-            sender: 'employee',
-            senderName: 'John Smith',
-            message: 'Yes, everything looks good. I also noticed your air filter needs replacement. Would you like me to replace it?',
-            timestamp: '10:45 AM'
-          }
-        ];
-        setChatMessages(mockChatMessages);
+        // Chat messages will be implemented later
+        setChatMessages([]);
 
         // 4. GET /api/appointment-history?clientId=${user.id}
         // Replace the mock appointment history array with:
@@ -236,32 +210,22 @@ export default function ClientDashboard() {
         setAppointmentHistory(historyData);
         */
 
-        // CURRENT MOCK DATA (remove this when implementing real API):
-        const mockAppointmentHistory: AppointmentHistory[] = [
-          {
-            id: '1',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Regular Maintenance',
-            date: '2025-10-15',
-            status: 'completed',
-            rating: 5,
-            employeeName: 'Sarah Wilson',
-            cost: 15000
-          },
-          {
-            id: '2',
-            clientId: currentUserId,
-            vehicleType: 'Sedan',
-            serviceType: 'Tire Rotation',
-            date: '2025-09-20',
-            status: 'completed',
-            rating: 4,
-            employeeName: 'Mike Johnson',
-            cost: 8000
-          }
-        ];
-        setAppointmentHistory(mockAppointmentHistory);
+        // Filter completed appointments for history
+        const completedAppointments: AppointmentHistory[] = mappedAppointments
+          .filter(apt => apt.status === 'completed')
+          .map(apt => ({
+            id: apt.id,
+            clientId: apt.clientId,
+            vehicleType: apt.vehicleType,
+            serviceType: apt.serviceType,
+            date: apt.date,
+            status: 'completed' as const,
+            rating: 5, // Default rating - can be enhanced later
+            employeeName: apt.employeeName,
+            cost: 0 // Default cost - can be enhanced later
+          }));
+        
+        setAppointmentHistory(completedAppointments);
 
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -655,7 +619,9 @@ export default function ClientDashboard() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold">Service Progress</h2>
             
-            {ongoingAppointments.map((appointment) => (
+            {ongoingAppointments
+              .filter(appointment => ['pending', 'assigned', 'in-progress'].includes(appointment.status))
+              .map((appointment) => (
               <Card key={appointment.id}>
                 <CardContent className="p-6">
                   <div className="space-y-4">

@@ -5,16 +5,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import type { Appointment, Employee } from '@/types/appointment';
-import { Calendar, Users, Clock, CheckCircle2, AlertCircle, UserCheck, Settings } from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, Check, X, AlertCircle, Settings, UserCheck, RefreshCw, Users } from 'lucide-react';
 import DailyLimitsManager from '@/components/DailyLimitsManager';
+import { 
+  getAllAppointments, 
+  getAppointmentsByDate,
+  getAllEmployees, 
+  assignEmployeeToAppointment,
+  type AdminAppointmentDto,
+  type EmployeeDto 
+} from '@/api/appointmentApi';
 
 export default function AdminPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [appointments, setAppointments] = useState<AdminAppointmentDto[]>([]);
+  const [employees, setEmployees] = useState<EmployeeDto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+  
+  // Confirmation state for assignment
+  const [pendingAssignment, setPendingAssignment] = useState<{
+    appointmentId: string;
+    employeeId: string;
+    employeeName: string;
+    appointmentClient: string;
+  } | null>(null);
+
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showDailyLimits, setShowDailyLimits] = useState(false);
 
@@ -27,6 +43,7 @@ export default function AdminPage() {
   useEffect(() => {
     setSelectedDate(getTodayDate());
     fetchEmployees();
+    fetchAppointments(); // Load all appointments initially
   }, []);
 
   useEffect(() => {
@@ -35,66 +52,22 @@ export default function AdminPage() {
     }
   }, [selectedDate]);
 
-  const fetchAppointments = async (date: string) => {
+  const fetchAppointments = async (date?: string) => {
     try {
       setLoading(true);
       
-      // Mock data - replace with actual API call
-      const mockAppointments: Appointment[] = [
-        {
-          id: '1',
-          clientId: 'user_123',
-          clientName: 'John Doe',
-          vehicleType: 'Sedan',
-          appointmentDate: date,
-          timeSlot: '09:00 AM',
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          clientId: 'user_456',
-          clientName: 'Jane Smith',
-          vehicleType: 'SUV',
-          appointmentDate: date,
-          timeSlot: '10:00 AM',
-          status: 'assigned',
-          assignedEmployeeId: 'emp_1',
-          assignedEmployeeName: 'Mike Johnson',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          clientId: 'user_789',
-          clientName: 'Bob Wilson',
-          vehicleType: 'Truck',
-          appointmentDate: date,
-          timeSlot: '11:00 AM',
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '4',
-          clientId: 'user_321',
-          clientName: 'Alice Brown',
-          vehicleType: 'Motorcycle',
-          appointmentDate: date,
-          timeSlot: '02:00 PM',
-          status: 'in-progress',
-          assignedEmployeeId: 'emp_2',
-          assignedEmployeeName: 'Sarah Davis',
-          createdAt: new Date().toISOString(),
-        },
-      ];
-
-      setAppointments(mockAppointments);
-
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/admin/appointments?date=${date}`);
-      // const data = await response.json();
-      // setAppointments(data);
+      // Use the correct AdminDashboardController endpoint
+      const appointmentsData = date 
+        ? await getAppointmentsByDate(date)  // Use date-specific endpoint 
+        : await getAllAppointments();         // Use all appointments endpoint
+      
+      // appointmentsData is already in AdminAppointmentDto format from the API
+      setAppointments(appointmentsData);
+      
+      console.log('Fetched appointments for admin:', appointmentsData);
     } catch (error) {
       console.error('Error fetching appointments:', error);
+      // Keep existing appointments on error to prevent empty state
     } finally {
       setLoading(false);
     }
@@ -102,88 +75,128 @@ export default function AdminPage() {
 
   const fetchEmployees = async () => {
     try {
-      // Mock data - replace with actual API call
-      const mockEmployees: Employee[] = [
-        { id: 'emp_1', name: 'Mike Johnson', email: 'mike@example.com', availability: true, assignedAppointments: 2 },
-        { id: 'emp_2', name: 'Sarah Davis', email: 'sarah@example.com', availability: true, assignedAppointments: 1 },
-        { id: 'emp_3', name: 'Tom Wilson', email: 'tom@example.com', availability: true, assignedAppointments: 0 },
-        { id: 'emp_4', name: 'Emma Taylor', email: 'emma@example.com', availability: false, assignedAppointments: 3 },
-      ];
-
-      setEmployees(mockEmployees);
-
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/admin/employees');
-      // const data = await response.json();
-      // setEmployees(data);
+      console.log('Fetching employees using /all-employees endpoint...');
+      const employeesData = await getAllEmployees();
+      setEmployees(employeesData);
+      console.log('Successfully fetched employees:', employeesData);
     } catch (error) {
       console.error('Error fetching employees:', error);
+      setEmployees([]);
     }
   };
 
   const handleAssignEmployee = async (appointmentId: string, employeeId: string) => {
+    // Validate inputs
+    if (!appointmentId || appointmentId === 'unknown-id') {
+      console.error('Invalid appointment ID:', appointmentId);
+      alert('Cannot assign employee: Invalid appointment ID');
+      return;
+    }
+    
+    if (!employeeId) {
+      console.error('Invalid employee ID:', employeeId);
+      alert('Cannot assign employee: Invalid employee ID');
+      return;
+    }
+
+    // Find employee and appointment details for confirmation
+    const employee = employees.find(emp => emp.id === employeeId);
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    
+    if (!employee || !appointment) {
+      alert('Employee or appointment not found');
+      return;
+    }
+
+    // Set pending assignment for confirmation
+    setPendingAssignment({
+      appointmentId,
+      employeeId,
+      employeeName: getEmployeeName(employee),
+      appointmentClient: appointment.clientName
+    });
+  };
+
+  const confirmAssignment = async () => {
+    if (!pendingAssignment) return;
+
     try {
-      setAssigningId(appointmentId);
-
-      // TODO: Replace with actual API call
-      const employee = employees.find(e => e.id === employeeId);
+      setAssigningId(pendingAssignment.appointmentId);
       
-      console.log('Assigning employee:', { appointmentId, employeeId });
+      console.log(`Confirming assignment of ${pendingAssignment.employeeName} to appointment ${pendingAssignment.appointmentId}`);
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Use the real API call to assign employee to appointment
+      const updatedAppointment = await assignEmployeeToAppointment(
+        pendingAssignment.appointmentId, 
+        pendingAssignment.employeeId
+      );
 
-      // Update local state
+      // Update local state with the response from backend
       setAppointments(prevAppointments =>
         prevAppointments.map(apt =>
-          apt.id === appointmentId
-            ? {
-                ...apt,
-                assignedEmployeeId: employeeId,
-                assignedEmployeeName: employee?.name,
-                status: 'assigned' as const,
-              }
-            : apt
+          apt.id === pendingAssignment.appointmentId ? updatedAppointment : apt
         )
       );
 
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/admin/appointments/${appointmentId}/assign`, {
-      //   method: 'PATCH',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ employeeId }),
-      // });
-      // if (response.ok) {
-      //   const updated = await response.json();
-      //   setAppointments(prev => prev.map(apt => apt.id === appointmentId ? updated : apt));
-      // }
+      console.log('Successfully assigned employee:', updatedAppointment);
+      
+      // Clear pending assignment
+      setPendingAssignment(null);
+      
+      // Show success message
+      alert(`✅ Successfully assigned ${pendingAssignment.employeeName} to ${pendingAssignment.appointmentClient}'s appointment`);
+      
     } catch (error) {
       console.error('Error assigning employee:', error);
+      alert(error instanceof Error ? error.message : 'Failed to assign employee');
     } finally {
       setAssigningId(null);
     }
   };
 
-  const getStatusBadge = (status: Appointment['status']) => {
+  const cancelAssignment = () => {
+    setPendingAssignment(null);
+  };
+
+  const getStatusBadge = (status: AdminAppointmentDto['status']) => {
     const badges = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      assigned: 'bg-blue-100 text-blue-800 border-blue-300',
-      'in-progress': 'bg-purple-100 text-purple-800 border-purple-300',
-      completed: 'bg-green-100 text-green-800 border-green-300',
-      cancelled: 'bg-red-100 text-red-800 border-red-300',
+      PENDING: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+      ASSIGNED: 'bg-blue-50 text-blue-700 border-blue-200',
+      IN_PROGRESS: 'bg-purple-50 text-purple-700 border-purple-200',
+      COMPLETED: 'bg-green-50 text-green-700 border-green-200',
+      CANCELLED: 'bg-red-50 text-red-700 border-red-200',
     };
-    return badges[status];
+    return badges[status] || 'bg-gray-50 text-gray-700 border-gray-200';
+  };
+
+  const getDisplayStatus = (status: AdminAppointmentDto['status']) => {
+    const statusMap = {
+      PENDING: 'Pending',
+      ASSIGNED: 'Assigned',
+      IN_PROGRESS: 'In Progress',
+      COMPLETED: 'Completed',
+      CANCELLED: 'Cancelled',
+    };
+    return statusMap[status] || 'Unknown';
+  };
+
+  const getEmployeeName = (employee: EmployeeDto) => {
+    return employee.name || 'Unknown Employee';
+  };
+
+  const getAssignedTasksCount = (employeeId: string) => {
+    return appointments.filter(apt => apt.assignedEmployeeId === employeeId).length;
   };
 
   const filteredAppointments = appointments.filter(apt => 
-    filterStatus === 'all' || apt.status === filterStatus
+    filterStatus === 'all' || apt.status === filterStatus.toUpperCase()
   );
 
   const stats = {
     total: appointments.length,
-    pending: appointments.filter(a => a.status === 'pending').length,
-    assigned: appointments.filter(a => a.status === 'assigned').length,
-    inProgress: appointments.filter(a => a.status === 'in-progress').length,
+    pending: appointments.filter(a => a.status === 'PENDING').length,
+    assigned: appointments.filter(a => a.status === 'ASSIGNED').length,
+    inProgress: appointments.filter(a => a.status === 'IN_PROGRESS').length,
   };
 
   return (
@@ -192,8 +205,8 @@ export default function AdminPage() {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Appointment Management</h1>
-            <p className="text-slate-600">View and assign appointments to available employees</p>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Admin Dashboard - All Client Appointments</h1>
+            <p className="text-slate-600">View and manage all appointments booked by clients across the system</p>
           </div>
           <Button
             onClick={() => setShowDailyLimits(!showDailyLimits)}
@@ -260,10 +273,10 @@ export default function AdminPage() {
           </Card>
         </div>
 
-        {/* Filters */}
+        {/* Filters and Controls */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="date-filter">Filter by Date</Label>
                 <Input
@@ -288,6 +301,32 @@ export default function AdminPage() {
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Quick Actions</Label>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setSelectedDate('');
+                      fetchAppointments();
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    View All
+                  </Button>
+                  <Button
+                    onClick={() => fetchAppointments(selectedDate || undefined)}
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                    className="flex items-center gap-1"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? 'Loading...' : 'Refresh'}
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -316,9 +355,13 @@ export default function AdminPage() {
               </div>
             ) : filteredAppointments.length > 0 ? (
               <div className="space-y-4">
-                {filteredAppointments.map((appointment) => (
+                {filteredAppointments.map((appointment, index) => {
+                  // Debug: Log appointment ID to check if it's valid
+                  console.log(`Appointment ${index} ID:`, appointment.id, 'Full appointment:', appointment);
+                  
+                  return (
                   <div
-                    key={appointment.id}
+                    key={appointment.id || `appointment-${index}`}
                     className="p-4 border rounded-lg hover:shadow-md transition-shadow bg-white"
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -329,7 +372,7 @@ export default function AdminPage() {
                             {appointment.clientName}
                           </h3>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusBadge(appointment.status)}`}>
-                            {appointment.status.replace('-', ' ').toUpperCase()}
+                            {getDisplayStatus(appointment.status)}
                           </span>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
@@ -351,8 +394,8 @@ export default function AdminPage() {
                       </div>
 
                       {/* Assignment Section */}
-                      <div className="flex items-center gap-2 min-w-[250px]">
-                        {appointment.status === 'pending' || appointment.status === 'assigned' ? (
+                      <div className="flex items-center gap-2 min-w-[300px]">
+                        {appointment.status === 'PENDING' || appointment.status === 'ASSIGNED' ? (
                           <>
                             <Select
                               value={appointment.assignedEmployeeId || ''}
@@ -363,36 +406,59 @@ export default function AdminPage() {
                                 <SelectValue placeholder="Assign employee" />
                               </SelectTrigger>
                               <SelectContent>
-                                {employees
-                                  .filter(emp => emp.availability)
-                                  .map((employee) => (
+                                {employees.map((employee) => (
                                     <SelectItem key={employee.id} value={employee.id}>
                                       <div className="flex flex-col">
-                                        <span className="font-medium">{employee.name}</span>
+                                        <span className="font-medium">{getEmployeeName(employee)}</span>
                                         <span className="text-xs text-slate-500">
-                                          {employee.assignedAppointments} task{employee.assignedAppointments !== 1 ? 's' : ''}
+                                          {getAssignedTasksCount(employee.id)} task{getAssignedTasksCount(employee.id) !== 1 ? 's' : ''}
                                         </span>
                                       </div>
                                     </SelectItem>
                                   ))}
                               </SelectContent>
                             </Select>
-                            {assigningId === appointment.id && (
+                            
+                            {/* Direct Action Buttons */}
+                            {pendingAssignment?.appointmentId === appointment.id ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  onClick={confirmAssignment}
+                                  size="sm"
+                                  className="h-8 px-2 bg-green-600 hover:bg-green-700 text-white"
+                                  disabled={assigningId === appointment.id}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  onClick={cancelAssignment}
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-2 border-red-200 text-red-600 hover:bg-red-50"
+                                  disabled={assigningId === appointment.id}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ) : assigningId === appointment.id ? (
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                            )}
+                            ) : null}
                           </>
                         ) : (
                           <div className="flex items-center gap-2 text-sm">
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
                             <span className="text-slate-600">
-                              {appointment.status === 'completed' ? 'Completed' : 'In Progress'}
+                              {getDisplayStatus(appointment.status)}
                             </span>
                           </div>
                         )}
                       </div>
+
+
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -413,28 +479,32 @@ export default function AdminPage() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {employees.map((employee) => (
-                <div
-                  key={employee.id}
-                  className={`p-4 border rounded-lg ${
-                    employee.availability ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Users className="h-5 w-5" />
-                    <h4 className="font-semibold text-slate-900">{employee.name}</h4>
+              {employees.map((employee) => {
+                const assignedTasks = getAssignedTasksCount(employee.id);
+                const isAvailable = assignedTasks < 5; // Assuming max 5 tasks per employee
+                return (
+                  <div
+                    key={employee.id}
+                    className={`p-4 border rounded-lg ${
+                      isAvailable ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users className="h-5 w-5" />
+                      <h4 className="font-semibold text-slate-900">{getEmployeeName(employee)}</h4>
+                    </div>
+                    <p className="text-sm text-slate-600 mb-2">{employee.email}</p>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={isAvailable ? 'text-green-700' : 'text-red-700'}>
+                        {isAvailable ? 'Available' : 'Busy'}
+                      </span>
+                      <span className="text-slate-600">
+                        {assignedTasks} task{assignedTasks !== 1 ? 's' : ''}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-sm text-slate-600 mb-2">{employee.email}</p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className={employee.availability ? 'text-green-700' : 'text-red-700'}>
-                      {employee.availability ? 'Available' : 'Busy'}
-                    </span>
-                    <span className="text-slate-600">
-                      {employee.assignedAppointments} task{employee.assignedAppointments !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
