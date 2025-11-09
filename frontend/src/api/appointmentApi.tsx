@@ -26,6 +26,8 @@ export interface AppointmentData {
   employeeName?: string;      // Optional
   description: string;        // Service description
   appointmentDate: string;    // ADDED: Required for daily limit validation (format: YYYY-MM-DD)
+  serviceTypeId: string;      // ADDED: Service type ID (e.g., "basic", "standard", "premium")
+  serviceTypeName: string;    // ADDED: Service type name (e.g., "Basic Service", "Premium Service")
 }
 
 // UPDATED: Enhanced error response interface
