@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Clock, Calendar, User, Check, X, AlertCircle, Settings, UserCheck, RefreshCw, Users } from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, Check, X, AlertCircle, Settings, UserCheck, RefreshCw, Users } from 'lucide-react';
 import DailyLimitsManager from '@/components/DailyLimitsManager';
 import { 
   getAllAppointments, 

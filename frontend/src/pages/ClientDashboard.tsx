@@ -4,7 +4,6 @@ import { useUser } from "@clerk/clerk-react";
 // import { useAuth } from "@clerk/clerk-react"; // 👈 Add this when implementing real API
 import { useNavigate } from "react-router-dom";
 import { getUserAppointments } from "@/api/appointmentApi";
-import type { BackendAppointment } from "@/types/appointment";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
