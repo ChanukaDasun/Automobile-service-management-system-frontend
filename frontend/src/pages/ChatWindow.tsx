@@ -179,4 +179,6 @@ function ChatWindow() {
   );
 }
 
+// export default withAuth(ChatWindow);
 export default ChatWindow;
+
